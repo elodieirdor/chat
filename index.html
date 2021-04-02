@@ -12,18 +12,18 @@
 
 <body>
     <div class="container mx-auto">
-        <div id="loginPage">
-            <form id="username-form">
-                <label for="username">Username</label>
-                <input type="text" name="username" id="username" />
+        <div id="loginPage" class="h-screen text-gray-500 text-6xl">
+            <form id="username-form" class="flex flex-col w-2/3 mx-auto h-full justify-center space-y-20 text-center">
+                <label for="username" class=" text-gray-500">What's your nickname ?</label>
+                <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none" />
             </form>
         </div>
 
-        <div class="chat" id="chatPage">
+        <div class="hidden" id="chatPage">
             <div id="messages"></div>
             <form id="form" action="" class="container fixed bottom-0 flex p-1">
-                    <!-- FIXME  focus:ring focus:border-blue-500 -->
-                    <input autocomplete="off" id="input" placeholder="Type your message" 
+                <!-- FIXME  focus:ring focus:border-blue-500 -->
+                <input autocomplete="off" id="input" placeholder="Type your message"
                     class="bg-gray-100 rounded-xl flex-1 p-2 focus:outline-none" />
             </form>
         </div>
@@ -64,8 +64,6 @@
         var templateMyMessage = document.querySelector("#my-message");
         var templateStatusMessage = document.querySelector("#status-message");
 
-        var loginPage = document.getElementById('loginPage');
-        var chatPage = document.getElementById('chatPage');
         var usernameInput = document.getElementById('username');
         usernameInput.focus();
 
@@ -76,9 +74,17 @@
             username = usernameInput.value;
             e.preventDefault();
             if (username) {
-                loginPage.style.display = 'none';
                 socket.emit('user joined', username);
-                chatPage.style.display = 'block';
+
+                // hide login page
+                const loginPage = document.getElementById('loginPage');
+                loginPage.classList.remove('block');
+                loginPage.classList.add('hidden');
+
+                // display chat page
+                const chatPage = document.getElementById('chatPage');
+                chatPage.classList.add('block');
+                chatPage.classList.remove('hidden');
                 input.focus();
             }
         });
