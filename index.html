@@ -6,82 +6,52 @@
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
     <title>Socket.IO chat</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <style>
-        body {
-            margin: 0;
-            padding-bottom: 3rem;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        #form {
-            background: rgba(0, 0, 0, 0.15);
-            padding: 0.25rem;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            display: flex;
-            height: 3rem;
-            box-sizing: border-box;
-            backdrop-filter: blur(10px);
-        }
-
-        #input {
-            border: none;
-            padding: 0 1rem;
-            flex-grow: 1;
-            border-radius: 2rem;
-            margin: 0.25rem;
-        }
-
-        #input:focus {
-            outline: none;
-        }
-
-        #form>button {
-            background: #333;
-            border: none;
-            padding: 0 1rem;
-            margin: 0.25rem;
-            border-radius: 3px;
-            outline: none;
-            color: #fff;
-        }
-
-        #messages {
-            list-style-type: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        #messages>li {
-            padding: 0.5rem 1rem;
-        }
-
-        #messages>li:nth-child(odd) {
-            background: #efefef;
-        }
-
-        .chat {
-            display: none;
-        }
-    </style>
-
+    <link rel="shortcut icon" href="favicon.ico">
+    <link href="/css/tailwind.css" rel="stylesheet">
 </head>
 
 <body>
-    <div class="login" id="loginPage">
-        <form id="username-form">
-            <label for="username">Username</label>
-            <input type="text" name="username" id="username" />
-        </form>
+    <div class="container mx-auto">
+        <div id="loginPage" class="h-screen text-gray-500 text-6xl">
+            <form id="username-form" class="flex flex-col w-2/3 mx-auto h-full justify-center space-y-20 text-center">
+                <label for="username" class=" text-gray-500">What's your nickname ?</label>
+                <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none" />
+            </form>
+        </div>
+
+        <div class="hidden" id="chatPage">
+            <div id="messages"></div>
+            <form id="form" action="" class="container fixed bottom-0 flex p-1">
+                <!-- FIXME  focus:ring focus:border-blue-500 -->
+                <input autocomplete="off" id="input" placeholder="Type your message"
+                    class="bg-gray-100 rounded-xl flex-1 p-2 focus:outline-none" />
+            </form>
+        </div>
     </div>
-    <div class="chat" id="chatPage">
-        <div id="messages"></div>
-        <form id="form" action="">
-            <input id="input" autocomplete="off" /><button>Send</button>
-        </form>
-    </div>
+
+    <template id="message">
+        <div class="mr-auto min-w-min max-w-xl flex m-2">
+            <div class="mr-auto bg-gray-100 p-3 rounded-xl shadow-md flex items-center space-x-2">
+                <div class="flex-shrink-0">
+                    <img class="h-12 w-12" src="" alt="">
+                </div>
+                <div>
+                    <div data-username class="font-medium text-black"></div>
+                    <p data-message class="text-gray-500"></p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="my-message">
+        <div class="ml-auto min-w-min max-w-xl flex m-2">
+            <p data-message class="ml-auto bg-red-100 p-3 rounded-xl shadow-md text-gray-500"></p>
+        </div>
+    </template>
+
+    <template id="status-message">
+        <p data-message class="italic m-2"></p>
+    </template>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -90,8 +60,10 @@
         var form = document.getElementById('form');
         var input = document.getElementById('input');
 
-        var loginPage = document.getElementById('loginPage');
-        var chatPage = document.getElementById('chatPage');
+        var templateMessage = document.querySelector("#message");
+        var templateMyMessage = document.querySelector("#my-message");
+        var templateStatusMessage = document.querySelector("#status-message");
+
         var usernameInput = document.getElementById('username');
         usernameInput.focus();
 
@@ -102,39 +74,57 @@
             username = usernameInput.value;
             e.preventDefault();
             if (username) {
-                loginPage.style.display = 'none';
                 socket.emit('user joined', username);
-                chatPage.style.display = 'block';
+
+                // hide login page
+                const loginPage = document.getElementById('loginPage');
+                loginPage.classList.remove('block');
+                loginPage.classList.add('hidden');
+
+                // display chat page
+                const chatPage = document.getElementById('chatPage');
+                chatPage.classList.add('block');
+                chatPage.classList.remove('hidden');
                 input.focus();
             }
         });
 
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            if (input.value) {
-                socket.emit('chat message', input.value);
-                input.value = '';
+        input.addEventListener('keydown', function (e) {
+            if (e.keyCode === 13) {
+                e.preventDefault();
+                if (input.value) {
+                    socket.emit('chat message', input.value);
+                    input.value = '';
+                }
             }
         });
 
-        socket.on('user joined', function ({username}) {
-            var item = document.createElement('div');
-            item.textContent = `${username} joined`;
-            messages.appendChild(item);
+        socket.on('user joined', function ({ user }) {
+            var message = `${user.username} joined`;
+            const clone = document.importNode(templateStatusMessage.content, true);
+            clone.querySelector('[data-message]').textContent = message;
+            messages.appendChild(clone);
             window.scrollTo(0, document.body.scrollHeight);
         });
 
-        socket.on('user left', function ({username}) {
-            var item = document.createElement('div');
-            item.textContent = `${username} left`;
-            messages.appendChild(item);
+        socket.on('user left', function ({ user }) {
+            var message = `${user.username} left`;
+            const clone = document.importNode(templateStatusMessage.content, true);
+            clone.querySelector('[data-message]').textContent = message;
+            messages.appendChild(clone);
             window.scrollTo(0, document.body.scrollHeight);
         });
 
-        socket.on('chat message', function ({username, message}) {
-            var item = document.createElement('div');
-            item.textContent = `${username}: ${message}`;
-            messages.appendChild(item);
+        socket.on('chat message', function ({ user, message }) {
+            if (user.username === username) {
+                var clone = document.importNode(templateMyMessage.content, true);
+            } else {
+                var clone = document.importNode(templateMessage.content, true);
+                clone.querySelector('img').setAttribute('src', user.image);
+                clone.querySelector('[data-username]').textContent = user.username;
+            }
+            clone.querySelector('[data-message]').textContent = message;
+            messages.appendChild(clone);
             window.scrollTo(0, document.body.scrollHeight);
         });
     </script>

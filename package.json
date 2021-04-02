@@ -4,6 +4,9 @@
   "description": "My first socket.io chat app",
   "author": "Elodie Irdor",
   "license": "ISC",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "express": "^4.17.1",
     "socket.io": "^4.0.1"
