@@ -14,21 +14,26 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
 
+// io.emit to send a message to all connected clients
+// socket.broadcast.emit to send a message to all connected clients except the sender
+
 io.on('connection', (socket) => {
     console.log('a user connected');
 
     socket.on('user joined', (username) => {
         socket.user = {username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg`};
-        io.emit('user joined', { user: socket.user });
+        socket.broadcast.emit('user joined', { user: socket.user });
     });
 
     socket.on('chat message', (msg) => {
-        io.emit('chat message', { message: msg, user: socket.user });
+        socket.broadcast.emit('chat message', { message: msg, user: socket.user });
     });
 
     socket.on('disconnect', () => {
-        console.log('user disconnected');
-        io.emit('user left', { user: socket.user });
+        if (socket.user) {
+            console.log('user disconnected');
+            io.emit('user left', { user: socket.user });    
+        }
     });
 });
 
