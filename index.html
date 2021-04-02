@@ -74,6 +74,7 @@
             username = usernameInput.value;
             e.preventDefault();
             if (username) {
+                
                 socket.emit('user joined', username);
 
                 // hide login page

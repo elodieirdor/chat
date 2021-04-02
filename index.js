@@ -19,7 +19,7 @@ io.on('connection', (socket) => {
 
     socket.on('user joined', (username) => {
         socket.user = {username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg`};
-        io.emit('user joined', { user: socket.user });
+        socket.broadcast.emit('user joined', { user: socket.user });
     });
 
     socket.on('chat message', (msg) => {
@@ -27,8 +27,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('user disconnected');
-        io.emit('user left', { user: socket.user });
+        if (socket.user) {
+            console.log('user disconnected');
+            io.emit('user left', { user: socket.user });    
+        }
     });
 });
 
