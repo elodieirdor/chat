@@ -8,7 +8,9 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "axios": "^0.21.1",
     "express": "^4.17.1",
+    "node-html-parser": "^3.1.2",
     "socket.io": "^4.0.1"
   }
 }
