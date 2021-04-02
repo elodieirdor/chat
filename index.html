@@ -19,7 +19,8 @@
             </form>
         </div>
 
-        <div class="hidden" id="chatPage">
+        <div class="hidden lg:mx-2 mb-14" id="chatPage">
+            <h1 class="text-5xl mt-2 text-gray-500">Community</h1>
             <div id="messages"></div>
             <form id="form" action="" class="container fixed bottom-0 flex p-1">
                 <!-- FIXME  focus:ring focus:border-blue-500 -->
@@ -50,85 +51,11 @@
     </template>
 
     <template id="status-message">
-        <p data-message class="italic m-2"></p>
+        <p data-message class="italic m-2 text-center"></p>
     </template>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        var socket = io();
-
-        var form = document.getElementById('form');
-        var input = document.getElementById('input');
-
-        var templateMessage = document.querySelector("#message");
-        var templateMyMessage = document.querySelector("#my-message");
-        var templateStatusMessage = document.querySelector("#status-message");
-
-        var usernameInput = document.getElementById('username');
-        usernameInput.focus();
-
-        var username = '';
-
-        var usernameForm = document.getElementById('username-form');
-        usernameForm.addEventListener('submit', function (e) {
-            username = usernameInput.value;
-            e.preventDefault();
-            if (username) {
-                
-                socket.emit('user joined', username);
-
-                // hide login page
-                const loginPage = document.getElementById('loginPage');
-                loginPage.classList.remove('block');
-                loginPage.classList.add('hidden');
-
-                // display chat page
-                const chatPage = document.getElementById('chatPage');
-                chatPage.classList.add('block');
-                chatPage.classList.remove('hidden');
-                input.focus();
-            }
-        });
-
-        input.addEventListener('keydown', function (e) {
-            if (e.keyCode === 13) {
-                e.preventDefault();
-                if (input.value) {
-                    socket.emit('chat message', input.value);
-                    input.value = '';
-                }
-            }
-        });
-
-        socket.on('user joined', function ({ user }) {
-            var message = `${user.username} joined`;
-            const clone = document.importNode(templateStatusMessage.content, true);
-            clone.querySelector('[data-message]').textContent = message;
-            messages.appendChild(clone);
-            window.scrollTo(0, document.body.scrollHeight);
-        });
-
-        socket.on('user left', function ({ user }) {
-            var message = `${user.username} left`;
-            const clone = document.importNode(templateStatusMessage.content, true);
-            clone.querySelector('[data-message]').textContent = message;
-            messages.appendChild(clone);
-            window.scrollTo(0, document.body.scrollHeight);
-        });
-
-        socket.on('chat message', function ({ user, message }) {
-            if (user.username === username) {
-                var clone = document.importNode(templateMyMessage.content, true);
-            } else {
-                var clone = document.importNode(templateMessage.content, true);
-                clone.querySelector('img').setAttribute('src', user.image);
-                clone.querySelector('[data-username]').textContent = user.username;
-            }
-            clone.querySelector('[data-message]').textContent = message;
-            messages.appendChild(clone);
-            window.scrollTo(0, document.body.scrollHeight);
-        });
-    </script>
+    <script src="/js/app.js"></script>
 </body>
 
 </html>

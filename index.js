@@ -14,6 +14,9 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
 
+// io.emit to send a message to all connected clients
+// socket.broadcast.emit to send a message to all connected clients except the sender
+
 io.on('connection', (socket) => {
     console.log('a user connected');
 
@@ -23,7 +26,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat message', (msg) => {
-        io.emit('chat message', { message: msg, user: socket.user });
+        socket.broadcast.emit('chat message', { message: msg, user: socket.user });
     });
 
     socket.on('disconnect', () => {
