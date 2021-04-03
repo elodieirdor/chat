@@ -23,12 +23,18 @@
         <div class="hidden lg:mx-2 mb-14" id="chatPage">
             <h1 class="text-5xl mt-2 text-gray-500">Community</h1>
             <div id="messages"></div>
-            <form id="form" action="" class="container fixed bottom-0 flex p-1">
+            <form id="form" action="" style="margin-left: 8%;" class="fixed bottom-0 flex p-1 w-10/12">
                 <!-- FIXME  focus:ring focus:border-blue-500 -->
                 <input autocomplete="off" id="input" placeholder="Type your message"
                     value="https://media.giphy.com/media/Plg2YiMyO2T1wK8PZE/giphy.gif plop https://voyager.nz/ https://www.lemonde.fr/societe/article/2021/04/02/l-un-de-nous-va-devoir-se-sacrifier-les-parents-face-au-casse-tete-de-la-garde-des-enfants_6075319_3224.html"
                     class="bg-gray-100 rounded-xl flex-1 p-2 focus:outline-none" />
-            </form>
+                    <div id="loader" class="hidden inline-flex items-center px-4 py-2 transition ease-in-out duration-150">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                </form>
         </div>
     </div>
 

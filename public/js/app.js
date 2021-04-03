@@ -10,6 +10,8 @@ var templateYoutube = document.querySelector("#youtube-message");
 var templateAudio = document.querySelector("#audio-message");
 var templateVideo = document.querySelector("#video-message");
 
+var loader = document.getElementById('loader');
+
 var usernameInput = document.getElementById('username');
 usernameInput.focus();
 
@@ -242,10 +244,16 @@ var form = document.getElementById('form');
 form.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (messageInput.value) {
+        input.disabled = true;
+        loader.classList.add('block');
+        loader.classList.remove('hidden');
         var _message = await safelyTransformMessage(messageInput.value);
+        loader.classList.remove('block');
+        loader.classList.add('hidden');
         socket.emit('chat message', _message);
         addMyMessage(_message);
         messageInput.value = '';
+        input.disabled = false;
     }
 });
 
