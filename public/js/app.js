@@ -21,69 +21,63 @@ const sanitizeHTML = (str) => {
     return temp.innerHTML;
 };
 
-const renderHtmlForLink = async (match, _message) => {
-    var url = match;
-
-
-    if (match.indexOf('http', 0) === -1) {
+const renderHtmlForLink = async (url) => {
+    if (url.indexOf('http', 0) === -1) {
         url = `https://${url}`;
     }
 
     try {
 
-    // get info from url
-    var response = await fetch(`/info-url?url=${url}`);
+        // get info from url
+        var response = await fetch(`/info-url?url=${url}`);
         var json = await response.json();
 
         // TODO use templates
 
         if (json.type === 'img') {
-            return _message.replace(match,
-                `<a target="_blank" class="underline" href="${url}">
+            return `<a target="_blank" class="underline" href="${url}">
                     <img src="${url}" width="200" height="200"/>
                 </a>`
-            );
+
         } else {
             if (json.type === 'html') {
 
                 if (json.image) {
-                    return _message.replace(match, 
-                        `<div class="my-5">
+                    return `<div class="my-5">
                             <a target="_blank" class="underline" href="${url}">
-                                <div>${json.title ?? match}</div>
+                                <div>${json.title ?? url}</div>
                                 <img src="${json.image}" width="200" height="200"/>
                             </a>
                         </div>`
-                    );
                 }
 
-                return _message.replace(match, `<a target="_blank" class="underline" href="${url}">${json.title ?? match}</a>`);
-            } 
+                return `<a target="_blank" class="underline" href="${url}">${json.title ?? url}</a>`;
+            }
         }
     } catch (error) {
         console.log(`Request failed ${error}`);
     }
 
-    return _message.replace(match, `<a target="_blank" class="underline" href="${url}">${match}</a>`);
+    return `<a target="_blank" class="underline" href="${url}">${url}</a>`;
 };
 
-const transformLink = async (message) => {
-    var _message = message;
-    var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
-    var matches = _message.match(regexUrl);
-    if (matches !== null) {
-        for (var match of matches) {
-            const result = await renderHtmlForLink(match, _message);
-            _message = result;
+const transformUrls = async (message) => {
+    var words = message.split(' ');
+    for (let i in words) {
+        //  don't know why but had to declare the regex inside the loop to have the test working after the 1st iteration
+        var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+        var word = words[i];
+        if (regexUrl.test(word)) {
+            words[i] = await renderHtmlForLink(word);
         }
     }
 
-    return _message;
+    return words.join(' ');
 };
 
-const transformMessage = (message) => {
+const safelyTransformMessage = (message) => {
     var sanitizedMsg = sanitizeHTML(message);
-    var updatedMessage = transformLink(sanitizedMsg);
+    var updatedMessage = transformUrls(sanitizedMsg);
 
     return updatedMessage;
 };
@@ -140,7 +134,7 @@ var form = document.getElementById('form');
 form.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (messageInput.value) {
-        var _message = await transformMessage(messageInput.value);
+        var _message = await safelyTransformMessage(messageInput.value);
         socket.emit('chat message', _message);
         addMyMessage(_message);
         messageInput.value = '';
