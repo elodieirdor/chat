@@ -3,11 +3,20 @@ var socket = io();
 var templateMessage = document.querySelector("#message");
 var templateMyMessage = document.querySelector("#my-message");
 var templateStatusMessage = document.querySelector("#status-message");
+var templateImg = document.querySelector("#img-message");
+var templateLinkWithImg = document.querySelector("#img-link-message");
+var templateLink = document.querySelector("#link-message");
+var templateYoutube = document.querySelector("#youtube-message");
+var templateAudio = document.querySelector("#audio-message");
+var templateVideo = document.querySelector("#video-message");
 
 var usernameInput = document.getElementById('username');
 usernameInput.focus();
 
 var messageInput = document.getElementById('input');
+
+const youtubeShortLink = "https://youtu.be/";
+const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 
 /*!
  * Sanitize and encode all HTML in a user-submitted string
@@ -21,54 +30,154 @@ const sanitizeHTML = (str) => {
     return temp.innerHTML;
 };
 
-const renderHtmlForLink = async (url) => {
+const renderYoutubeVideo = (url) => {
+    let src = "https://www.youtube.com/embed/";
+
+    if (url.indexOf(youtubeShortLink) === 0) {
+        src += url.substring(youtubeShortLink.length);
+    } else {
+        if (url.indexOf(youtubeWatchLink) === 0) {
+            src += url.substring(youtubeWatchLink.length);
+        }
+    }
+
+    const clone = document.importNode(templateYoutube.content, true);
+    clone.querySelector('iframe').setAttribute('src', src);
+
+    // meed this because we are not appending the element directly to the dom
+    var temp = document.createElement('div');
+    temp.appendChild(clone);
+
+    return temp.innerHTML;
+}
+
+const getFileExtension = (url) => {
+    const pathname = new URL(url).pathname;
+
+    return pathname.substring(pathname.length - 3);
+}
+
+const renderImgElement = (url) => {
+    const clone = document.importNode(templateImg.content, true);
+    clone.querySelector('a').setAttribute('href', url);
+    clone.querySelector('img').setAttribute('src', url);
+
+    // meed this because we are not appending the element directly to the dom
+    var temp = document.createElement('div');
+    temp.appendChild(clone);
+
+    return temp.innerHTML;
+};
+
+const renderAudioElement = (url) => {
+    const clone = document.importNode(templateAudio.content, true);
+    const extension = getFileExtension(url);
+    const type = getFileExtension(url) === 'mp3' ? 'mpeg' : extension;
+
+    clone.querySelector('source').setAttribute('src', url);
+    clone.querySelector('source').setAttribute('type', `audio/${type}`);
+    // meed this because we are not appending the element directly to the dom
+    var temp = document.createElement('div');
+    temp.appendChild(clone);
+
+    return temp.innerHTML;
+};
+
+const renderVideoElement = (url) => {
+    const clone = document.importNode(templateVideo.content, true);
+    const type = getFileExtension(url);
+
+    clone.querySelector('source').setAttribute('src', url);
+    clone.querySelector('source').setAttribute('type', `video/${type}`);
+    // meed this because we are not appending the element directly to the dom
+    var temp = document.createElement('div');
+    temp.appendChild(clone);
+
+    return temp.innerHTML;
+};
+
+const renderLinkWithImage = (title, image, url) => {
+    const clone = document.importNode(templateLinkWithImg.content, true);
+    clone.querySelector('a').setAttribute('href', url);
+    clone.querySelector('img').setAttribute('src', image);
+    clone.querySelector('[data-title]').textContent = title;
+
+    // meed this because we are not appending the element directly to the dom
+    var temp = document.createElement('div');
+    temp.appendChild(clone);
+
+    return temp.innerHTML;
+};
+
+const renderLink = (title, url) => {
+    const clone = document.importNode(templateLink.content, true);
+    clone.querySelector('a').setAttribute('href', url);
+    clone.querySelector('a').textContent = title;
+
+    // meed this because we are not appending the element directly to the dom
+    var temp = document.createElement('div');
+    temp.appendChild(clone);
+
+    return temp.innerHTML;
+};
+
+const renderHtmlForLink = (url, urlData) => {
+    // prevent wrong clickable link in the browser
     if (url.indexOf('http', 0) === -1) {
         url = `https://${url}`;
     }
 
-    try {
-
-        // get info from url
-        var response = await fetch(`/info-url?url=${url}`);
-        var json = await response.json();
-
-        // TODO use templates
-
-        if (json.type === 'img') {
-            return `<a target="_blank" class="underline" href="${url}">
-                    <img src="${url}" width="200" height="200"/>
-                </a>`
-
-        } else {
-            if (json.type === 'html') {
-
-                if (json.image) {
-                    return `<div class="my-5">
-                            <a target="_blank" class="underline" href="${url}">
-                                <div>${json.title ?? url}</div>
-                                <img src="${json.image}" width="200" height="200"/>
-                            </a>
-                        </div>`
-                }
-
-                return `<a target="_blank" class="underline" href="${url}">${json.title ?? url}</a>`;
-            }
-        }
-    } catch (error) {
-        console.log(`Request failed ${error}`);
+    if (urlData.type === 'image') {
+        return renderImgElement(url);
     }
 
-    return `<a target="_blank" class="underline" href="${url}">${url}</a>`;
+    if (urlData.type === 'audio') {
+        return renderAudioElement(url);
+    }
+
+    if (urlData.type === 'video') {
+        return renderVideoElement(url);
+    }
+
+    const isYoutubeLink = url.indexOf(youtubeShortLink) === 0
+        || url.indexOf(youtubeWatchLink) === 0;
+    if (isYoutubeLink) {
+        return renderYoutubeVideo(url);
+    }
+
+    if (urlData.type === 'html' && urlData.image) {
+        return renderLinkWithImage(urlData.title, urlData.image, url);
+    }
+
+
+    return renderLink(urlData.title, url);
 };
 
 const transformUrls = async (message) => {
+    var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+    var matches = message.match(regexUrl);
+
+    if (matches === null) {
+        return message;
+    }
+
+    // call api to get url data
+    var response = await fetch(`/info-url`, {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ urls: matches })
+    });
+
+    // return an array like ["matchString1":{type:'html',title:'title', image:'image_url'}]
+    var urlData = await response.json();
+
     var words = message.split(' ');
     for (let i in words) {
-        //  don't know why but had to declare the regex inside the loop to have the test working after the 1st iteration
-        var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
         var word = words[i];
-        if (regexUrl.test(word)) {
-            words[i] = await renderHtmlForLink(word);
+        if (urlData[word]) {
+            words[i] = renderHtmlForLink(word, urlData[word]);
         }
     }
 
@@ -77,9 +186,8 @@ const transformUrls = async (message) => {
 
 const safelyTransformMessage = (message) => {
     var sanitizedMsg = sanitizeHTML(message);
-    var updatedMessage = transformUrls(sanitizedMsg);
 
-    return updatedMessage;
+    return transformUrls(sanitizedMsg);
 };
 
 const addMessageToList = (messageEl) => {

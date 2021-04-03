@@ -15,9 +15,8 @@
         <div id="loginPage" class="h-screen text-gray-500 text-6xl">
             <form id="username-form" class="flex flex-col w-2/3 mx-auto h-full justify-center space-y-20 text-center">
                 <label for="username" class=" text-gray-500">What's your nickname ?</label>
-                <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none" 
-                value="plop"
-                />
+                <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none"
+                    value="plop" />
             </form>
         </div>
 
@@ -27,7 +26,7 @@
             <form id="form" action="" class="container fixed bottom-0 flex p-1">
                 <!-- FIXME  focus:ring focus:border-blue-500 -->
                 <input autocomplete="off" id="input" placeholder="Type your message"
-                value="https://media.giphy.com/media/Plg2YiMyO2T1wK8PZE/giphy.gif https://media.giphy.com/media/QSMBLRAHZTLkQ/giphy.gif"
+                    value="https://media.giphy.com/media/Plg2YiMyO2T1wK8PZE/giphy.gif plop https://voyager.nz/ https://www.lemonde.fr/societe/article/2021/04/02/l-un-de-nous-va-devoir-se-sacrifier-les-parents-face-au-casse-tete-de-la-garde-des-enfants_6075319_3224.html"
                     class="bg-gray-100 rounded-xl flex-1 p-2 focus:outline-none" />
             </form>
         </div>
@@ -56,6 +55,50 @@
     <template id="status-message">
         <p data-message class="italic m-2 text-center"></p>
     </template>
+
+    <template id="img-message">
+        <div class="my-5">
+            <a target="_blank" class="underline">
+                <img width="200" height="200" />
+            </a>
+        </div>
+    </template>
+
+    <template id="img-link-message">
+        <div class="my-5">
+            <a target="_blank" class="underline">
+                <div data-title></div>
+                <img width="200" height="200" />
+            </a>
+        </div>
+    </template>
+
+    <template id="link-message">
+        <a target="_blank" class="underline"></a>
+    </template>
+
+    <template id="youtube-message">
+        <iframe title="YouTube video player" frameborder="0"
+            width="320" height="240"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    </template>
+
+    <template id="audio-message">
+        <audio controls>
+            <source>
+            Your browser does not support the audio element.
+        </audio>
+    </template>
+
+    <template id="video-message">
+        <video width="320" height="240" controls>
+            <source>
+            Your browser does not support the video tag.
+            </audio>
+    </template>
+
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/app.js"></script>
