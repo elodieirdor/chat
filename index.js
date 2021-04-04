@@ -15,6 +15,13 @@ const getRandomInt = (max = 99) => {
     return Math.floor(Math.random() * max);
 }
 
+const uniqid = (prefix = "", random = false) => {
+    const sec = Date.now() * 1000 + Math.random() * 1000;
+    const id = sec.toString(16).replace(/\./g, "").padEnd(14, "0");
+
+    return `${prefix}${id}${random ? `.${Math.trunc(Math.random() * 100000000)}`:""}`;
+};
+
 app.use(express.static(__dirname + '/public'));
 app.use(express.json()) // for parsing application/json
 
@@ -84,7 +91,7 @@ io.on('connection', (socket) => {
     console.log('a user connected');
 
     socket.on('user joined', (username) => {
-        socket.user = { username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg` };
+        socket.user = { username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg`, id: uniqid() };
         socket.broadcast.emit('user joined', { user: socket.user });
     });
 
@@ -97,6 +104,14 @@ io.on('connection', (socket) => {
             console.log('user disconnected');
             io.emit('user left', { user: socket.user });
         }
+    });
+
+    socket.on('user typing', () => {
+        socket.broadcast.emit('user typing', { user: socket.user });
+    });
+
+    socket.on('stop typing', () => {
+        socket.broadcast.emit('stop typing', { user: socket.user });
     });
 });
 
