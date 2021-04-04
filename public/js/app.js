@@ -20,6 +20,9 @@ var messageInput = document.getElementById('input');
 const youtubeShortLink = "https://youtu.be/";
 const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 
+let isTyping = false;
+const TYPING_TIMER_LENGTH = 1000;
+
 /*!
  * Sanitize and encode all HTML in a user-submitted string
  * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
@@ -217,6 +220,20 @@ const addUserStatusMessage = (message) => {
     addMessageToList(clone);
 };
 
+const addTypingMessage = (message, user) => {
+    const clone = document.importNode(templateStatusMessage.content, true);
+    const messageEl = clone.querySelector('[data-message]');
+    messageEl.textContent = message;
+    messageEl.classList.add('animate-pulse');
+    messageEl.setAttribute('data-typing', user.id);
+    addMessageToList(clone);
+};
+
+const removeTypingMessage = (user) => {
+    document.querySelector(`[data-typing="${user.id}"]`).remove();
+};
+
+
 const switchToChat = () => {
     // hide login page
     const loginPage = document.getElementById('loginPage');
@@ -257,6 +274,23 @@ form.addEventListener('submit', async function (e) {
     }
 });
 
+input.addEventListener("input", event => {
+    if (isTyping === false) {
+        isTyping = true;
+        socket.emit('user typing');
+    }
+    lastTypingTime = (new Date()).getTime();
+
+    setTimeout(() => {
+      const typingTimer = (new Date()).getTime();
+      const timeDiff = typingTimer - lastTypingTime;
+      if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
+        socket.emit('stop typing');
+        isTyping = false;
+      }
+    }, TYPING_TIMER_LENGTH);
+});
+
 socket.on('user joined', function ({ user }) {
     var message = `${user.username} joined`;
     addUserStatusMessage(message);
@@ -269,4 +303,13 @@ socket.on('user left', function ({ user }) {
 
 socket.on('chat message', function ({ user, message }) {
     addOtherUserMessage(user, message);
+});
+
+socket.on('user typing', function ({ user }) {
+    var message = `${user.username} is typing ...`;
+    addTypingMessage(message, user);
+});
+
+socket.on('stop typing', function ({ user }) {
+    removeTypingMessage(user);
 });
