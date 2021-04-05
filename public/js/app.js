@@ -21,7 +21,7 @@ const youtubeShortLink = "https://youtu.be/";
 const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 
 let isTyping = false;
-const TYPING_TIMER_LENGTH = 1000;
+const TYPING_TIMER_LENGTH = 500;
 
 /*!
  * Sanitize and encode all HTML in a user-submitted string
@@ -154,7 +154,6 @@ const renderHtmlForLink = (url, urlData) => {
         return renderLinkWithImage(urlData.title, urlData.image, url);
     }
 
-
     return renderLink(urlData.title, url);
 };
 
@@ -197,7 +196,7 @@ const safelyTransformMessage = (message) => {
 
 const addMessageToList = (messageEl) => {
     messages.appendChild(messageEl);
-    window.scrollTo(0, document.body.scrollHeight);
+    messages.scrollTo(0, messages.scrollHeight);
 };
 
 const addMyMessage = (message) => {
@@ -224,7 +223,7 @@ const addTypingMessage = (message, user) => {
     const clone = document.importNode(templateStatusMessage.content, true);
     const messageEl = clone.querySelector('[data-message]');
     messageEl.textContent = message;
-    messageEl.classList.add('animate-pulse');
+    toggleClasses(messageEl, 'animate-pulse');
     messageEl.setAttribute('data-typing', user.id);
     addMessageToList(clone);
 };
@@ -233,17 +232,15 @@ const removeTypingMessage = (user) => {
     document.querySelector(`[data-typing="${user.id}"]`).remove();
 };
 
-
 const switchToChat = () => {
     // hide login page
     const loginPage = document.getElementById('loginPage');
-    loginPage.classList.remove('block');
-    loginPage.classList.add('hidden');
+    toggleClasses(loginPage, ['block', 'hidden']);
 
     // display chat page
     const chatPage = document.getElementById('chatPage');
-    chatPage.classList.add('block');
-    chatPage.classList.remove('hidden');
+    toggleClasses(chatPage, ['block', 'hidden']);
+
     messageInput.focus();
 };
 
@@ -257,20 +254,31 @@ usernameForm.addEventListener('submit', function (e) {
     }
 });
 
+const toggleClasses = (element, classes) => {
+    const currentClasses = element.classList.value.split(' ');
+    if (currentClasses.indexOf(classes) === -1) {
+        element.classList.add(classes);
+    } else {
+        element.classList.remove(classes);
+    }
+}
+
 var form = document.getElementById('form');
 form.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (messageInput.value) {
         input.disabled = true;
-        loader.classList.add('block');
-        loader.classList.remove('hidden');
+        toggleClasses(input, ['w-full', 'w-11/12']);
+        toggleClasses(loader, ['hidden']);
         var _message = await safelyTransformMessage(messageInput.value);
-        loader.classList.remove('block');
-        loader.classList.add('hidden');
+
         socket.emit('chat message', _message);
         addMyMessage(_message);
+        toggleClasses(loader, ['block', 'hidden']);
+        toggleClasses(input, ['w-full', 'w-11/12']);
         messageInput.value = '';
         input.disabled = false;
+        input.focus();
     }
 });
 
