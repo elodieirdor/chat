@@ -44,12 +44,16 @@
 
                 <div id="nav-wrapper">
                     <nav class="p-2">
-                        <ul class="overflow-ellipsis overflow-hidden">
-                            <li class="py-1 font-medium text-yellow-500 overflow-ellipsis overflow-hidden">
-                                Community
+                        <ul id="rooms-list" class="overflow-ellipsis overflow-hidden">
+                            <li class="py-1  overflow-ellipsis overflow-hidden">
+                                <a href="#community" data-menu-room="community" class="block font-medium text-yellow-500">
+                                    Community
+                                </a>
                             </li>
                             <li class="py-1 overflow-ellipsis overflow-hidden">
-                                Un autre
+                                <a href="#other" data-menu-room="other" class="block">
+                                    Other room
+                                </a>
                             </li>
                         </ul>
                     </nav>
@@ -57,14 +61,25 @@
             </div>
 
             <div id="content-wrapper" class="bg-gray-100 min-w-0 w-full h-screen flex-auto static pt-5 relative">
-                <div class="px-5">
+                <div class="px-5" data-room="community">
                     <div class="mb-2">
-                        <h1 class="text-3xl text-gray-500">Community</h1>
+                        <h1 class="text-3xl text-gray-500" data-title>Community</h1>
                     </div>
-                    <div id="messages" class="bg-white overflow-y-auto h-5/6">
-
+                    <div data-messages-room="community" 
+                        class="bg-white overflow-y-auto messages-wrapper">
                     </div>
                 </div>
+
+                <!-- Manually create a list for each room, should be dynamic -->
+                <div class="px-5 hidden" data-room="other">
+                    <div class="mb-2">
+                        <h1 class="text-3xl text-gray-500" data-title>Other room</h1>
+                    </div>
+                    <div data-messages-room="other" 
+                        class="bg-white overflow-y-auto messages-wrapper">
+                    </div>
+                </div>
+                
                 <form id="form" action="" class="absolute bottom-0 flex p-2 w-full flex">
                     <!-- FIXME  focus:ring focus:border-blue-500 -->
                     <input autocomplete="off" id="input" placeholder="Type your message"
@@ -157,4 +172,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/app.js"></script>
 </body>
+
 </html>

@@ -19,6 +19,6 @@
 }
 
 /* trick to display the scrollbar without defining fixing the width */
-#messages {
+.messages-wrapper {
     height: calc(100vh - 120px);
 }

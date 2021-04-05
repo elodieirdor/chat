@@ -22,6 +22,8 @@ const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
+const rooms = ['community', 'other'];
+let currentRoom = rooms[0];
 
 /*!
  * Sanitize and encode all HTML in a user-submitted string
@@ -194,7 +196,8 @@ const safelyTransformMessage = (message) => {
     return transformUrls(sanitizedMsg);
 };
 
-const addMessageToList = (messageEl) => {
+const addMessageToList = (messageEl, room) => {
+    const messages = document.querySelector(`[data-messages-room="${room}"]`);
     messages.appendChild(messageEl);
     messages.scrollTo(0, messages.scrollHeight);
 };
@@ -202,30 +205,30 @@ const addMessageToList = (messageEl) => {
 const addMyMessage = (message) => {
     var clone = document.importNode(templateMyMessage.content, true);
     clone.querySelector('[data-message]').innerHTML = message;
-    addMessageToList(clone);
+    addMessageToList(clone, currentRoom);
 };
 
-const addOtherUserMessage = (user, message) => {
+const addOtherUserMessage = (user, message, room) => {
     var clone = document.importNode(templateMessage.content, true);
     clone.querySelector('img').setAttribute('src', user.image);
     clone.querySelector('[data-username]').textContent = user.username;
     clone.querySelector('[data-message]').innerHTML = message;
-    addMessageToList(clone);
+    addMessageToList(clone, room);
 }
 
-const addUserStatusMessage = (message) => {
+const addUserStatusMessage = (message, room) => {
     const clone = document.importNode(templateStatusMessage.content, true);
     clone.querySelector('[data-message]').textContent = message;
-    addMessageToList(clone);
+    addMessageToList(clone, room);
 };
 
-const addTypingMessage = (message, user) => {
+const addTypingMessage = (user, room) => {
     const clone = document.importNode(templateStatusMessage.content, true);
     const messageEl = clone.querySelector('[data-message]');
-    messageEl.textContent = message;
+    messageEl.textContent = `${user.username} is typing ...`;
     toggleClasses(messageEl, 'animate-pulse');
     messageEl.setAttribute('data-typing', user.id);
-    addMessageToList(clone);
+    addMessageToList(clone, room);
 };
 
 const removeTypingMessage = (user) => {
@@ -256,10 +259,12 @@ usernameForm.addEventListener('submit', function (e) {
 
 const toggleClasses = (element, classes) => {
     const currentClasses = element.classList.value.split(' ');
-    if (currentClasses.indexOf(classes) === -1) {
-        element.classList.add(classes);
-    } else {
-        element.classList.remove(classes);
+    for (_class of classes) {
+        if (currentClasses.indexOf(_class) === -1) {
+            element.classList.add(_class);
+        } else {
+            element.classList.remove(_class);
+        }
     }
 }
 
@@ -272,7 +277,7 @@ form.addEventListener('submit', async function (e) {
         toggleClasses(loader, ['hidden']);
         var _message = await safelyTransformMessage(messageInput.value);
 
-        socket.emit('chat message', _message);
+        socket.emit('chat message', _message, currentRoom);
         addMyMessage(_message);
         toggleClasses(loader, ['block', 'hidden']);
         toggleClasses(input, ['w-full', 'w-11/12']);
@@ -282,42 +287,81 @@ form.addEventListener('submit', async function (e) {
     }
 });
 
-input.addEventListener("input", event => {
+input.addEventListener("input", () => {
     if (isTyping === false) {
         isTyping = true;
-        socket.emit('user typing');
+        socket.emit('user typing', currentRoom);
     }
     lastTypingTime = (new Date()).getTime();
 
     setTimeout(() => {
-      const typingTimer = (new Date()).getTime();
-      const timeDiff = typingTimer - lastTypingTime;
-      if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
-        socket.emit('stop typing');
-        isTyping = false;
-      }
+        const typingTimer = (new Date()).getTime();
+        const timeDiff = typingTimer - lastTypingTime;
+        if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
+            socket.emit('stop typing', currentRoom);
+            isTyping = false;
+        }
     }, TYPING_TIMER_LENGTH);
+});
+
+const switchToRoom = (room) => {
+    let toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room=${room}]`);
+    let currentRoomItemMenu = document.querySelector(`[data-menu-room=${currentRoom}]`);
+    if (toBeCurrentRoomItemMenu === null) {
+        // TODO creer l element
+        console.error(`Room item menu ${toBeCurrentRoomItemMenu} does not exist`);
+        return;
+    }
+
+    // remove "active" classes on previous items and them to the room about to be current
+    [currentRoomItemMenu, toBeCurrentRoomItemMenu].map((_roomItem) => {
+        toggleClasses(_roomItem, ['font-medium', 'text-yellow-500']);
+    });
+
+    // switch to new room panel
+    const toBeCurrentRoomEl = document.querySelector(`[data-room=${room}]`);
+    const currentRoomEl = document.querySelector(`[data-room=${currentRoom}]`);
+    [toBeCurrentRoomEl, currentRoomEl].map((_roomEl) => {
+        toggleClasses(_roomEl, ['hidden']);
+    });
+
+    currentRoom = room;
+};
+
+document.getElementById('rooms-list').addEventListener('click', (event) => {
+    const room = event.target.getAttribute('data-menu-room');
+    if (room === null || room === currentRoom) {
+        return;
+    }
+    switchToRoom(room);
 });
 
 socket.on('user joined', function ({ user }) {
     var message = `${user.username} joined`;
-    addUserStatusMessage(message);
+    rooms.map(room => {
+        addUserStatusMessage(message, room);
+    })
 });
 
 socket.on('user left', function ({ user }) {
     var message = `${user.username} left`;
-    addUserStatusMessage(message);
+    rooms.map(room => {
+        addUserStatusMessage(message, room);
+    })
 });
 
-socket.on('chat message', function ({ user, message }) {
-    addOtherUserMessage(user, message);
+socket.on('chat message', function ({ user, message, room }) {
+    addOtherUserMessage(user, message, room);
 });
 
-socket.on('user typing', function ({ user }) {
-    var message = `${user.username} is typing ...`;
-    addTypingMessage(message, user);
+socket.on('user typing', function ({ user, room }) {
+    if (room === currentRoom) {
+        addTypingMessage(user, room);
+    }
 });
 
-socket.on('stop typing', function ({ user }) {
-    removeTypingMessage(user);
+socket.on('stop typing', function ({ user, room }) {
+    if (room === currentRoom) {
+        removeTypingMessage(user, room);
+    }
 });
