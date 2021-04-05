@@ -6,35 +6,84 @@
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
     <title>Socket.IO chat</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="shortcut icon" href="/images/favicon.ico">
     <link href="/css/tailwind.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
 </head>
 
 <body>
-    <div class="container mx-auto">
-        <div id="loginPage" class="h-screen text-gray-500 text-6xl">
-            <form id="username-form" class="flex flex-col w-2/3 mx-auto h-full justify-center space-y-20 text-center">
-                <label for="username" class=" text-gray-500">What's your nickname ?</label>
-                <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none"
-                    value="plop" />
-            </form>
-        </div>
+    <div class="w-full mx-auto bg-white">
+        <div id="loginPage" class="h-screen p-10 flex flex-col">
+            <div class="flex flex-col mt-10 w-full mx-auto h-full text-center">
+                <a class="mb-10" href="/">
+                    <img alt="Ephemere chat logo" src="/images/android-chrome-192x192.png" width="80" height="80"
+                        class="m-auto">
+                    <span class="text-2xl text-gray-500">Ephemere chat</span>
+                </a>
+                <form id="username-form">
+                    <label for="username" class="text-gray-500 text-xl mb-6 block">What's your nickname ?</label>
+                    <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none"
+                        value="plop">
+                    <button class="block bg-yellow-500 mt-10 mx-auto rounded-xl w-max py-2 px-10 text-white">
+                        Join
+                    </button>
+                </form>
+            </div>
 
-        <div class="hidden lg:mx-2 mb-14" id="chatPage">
-            <h1 class="text-5xl mt-2 text-gray-500">Community</h1>
-            <div id="messages"></div>
-            <form id="form" action="" style="margin-left: 8%;" class="fixed bottom-0 flex p-1 w-10/12">
-                <!-- FIXME  focus:ring focus:border-blue-500 -->
-                <input autocomplete="off" id="input" placeholder="Type your message"
-                    value="https://media.giphy.com/media/Plg2YiMyO2T1wK8PZE/giphy.gif plop https://voyager.nz/ https://www.lemonde.fr/societe/article/2021/04/02/l-un-de-nous-va-devoir-se-sacrifier-les-parents-face-au-casse-tete-de-la-garde-des-enfants_6075319_3224.html"
-                    class="bg-gray-100 rounded-xl flex-1 p-2 focus:outline-none" />
-                    <div id="loader" class="hidden inline-flex items-center px-4 py-2 transition ease-in-out duration-150">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </div>
+        <div class="flex space-x-2 hidden" id="chatPage">
+            <div id="sidebar" class="h-screen w-1/4 static bg-white pl-2">
+
+                <div class="flex-none pt-5 flex items-center m-auto ">
+                    <a class="overflow-hidden w-auto flex space-x-2 m-auto  flex-col md:flex-row lg:flex-row" href="/">
+                        <img alt="Ephemere chat logo" src="/images/favicon-32x32.png" width="32" height="32"
+                            class="m-auto">
+                        <span class="text-base md:text-2xl text-gray-500">Ephemere chat</span>
+                    </a>
+                </div>
+
+                <div id="nav-wrapper">
+                    <nav class="p-2">
+                        <ul class="overflow-ellipsis overflow-hidden">
+                            <li class="py-1 font-medium text-yellow-500 overflow-ellipsis overflow-hidden">
+                                Community
+                            </li>
+                            <li class="py-1 overflow-ellipsis overflow-hidden">
+                                Un autre
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            <div id="content-wrapper" class="bg-gray-100 min-w-0 w-full h-screen flex-auto static pt-5 relative">
+                <div class="px-5">
+                    <div class="mb-2">
+                        <h1 class="text-3xl text-gray-500">Community</h1>
+                    </div>
+                    <div id="messages" class="bg-white overflow-y-auto h-5/6">
+
+                    </div>
+                </div>
+                <form id="form" action="" class="absolute bottom-0 flex p-2 w-full flex">
+                    <!-- FIXME  focus:ring focus:border-blue-500 -->
+                    <input autocomplete="off" id="input" placeholder="Type your message"
+                        value="https://media.giphy.com/media/Plg2YiMyO2T1wK8PZE/giphy.gif"
+                        class="bg-white rounded-xl p-2 focus:outline-none w-full">
+                    <div id="loader"
+                        class="hidden inline-flex items-center px-2 py-2 transition ease-in-out duration-150 w-1/12">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
                         </svg>
                     </div>
                 </form>
+            </div>
+
         </div>
     </div>
 
@@ -54,7 +103,7 @@
 
     <template id="my-message">
         <div class="ml-auto min-w-min max-w-xl flex m-2">
-            <p data-message class="ml-auto bg-red-100 p-3 rounded-xl shadow-md text-gray-500"></p>
+            <p data-message class="ml-auto bg-yellow-100 p-3 rounded-xl shadow-md text-gray-500"></p>
         </div>
     </template>
 
@@ -63,7 +112,7 @@
     </template>
 
     <template id="img-message">
-        <div class="my-5">
+        <div>
             <a target="_blank" class="underline">
                 <img width="200" height="200" />
             </a>
@@ -84,8 +133,7 @@
     </template>
 
     <template id="youtube-message">
-        <iframe title="YouTube video player" frameborder="0"
-            width="320" height="240"
+        <iframe title="YouTube video player" frameborder="0" width="320" height="240"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowfullscreen>
         </iframe>
@@ -109,5 +157,4 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/app.js"></script>
 </body>
-
 </html>
