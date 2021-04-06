@@ -1,21 +1,23 @@
 var socket = io();
 
-var templateMessage = document.querySelector("#message");
-var templateMyMessage = document.querySelector("#my-message");
-var templateStatusMessage = document.querySelector("#status-message");
-var templateImg = document.querySelector("#img-message");
-var templateLinkWithImg = document.querySelector("#img-link-message");
-var templateLink = document.querySelector("#link-message");
-var templateYoutube = document.querySelector("#youtube-message");
-var templateAudio = document.querySelector("#audio-message");
-var templateVideo = document.querySelector("#video-message");
-
-var loader = document.getElementById('loader');
-
-var usernameInput = document.getElementById('username');
+const templateMessage = document.querySelector("#message");
+const templateMyMessage = document.querySelector("#my-message");
+const templateStatusMessage = document.querySelector("#status-message");
+const templateImg = document.querySelector("#img-message");
+const templateLinkWithImg = document.querySelector("#img-link-message");
+const templateLink = document.querySelector("#link-message");
+const templateYoutube = document.querySelector("#youtube-message");
+const templateAudio = document.querySelector("#audio-message");
+const templateVideo = document.querySelector("#video-message");
+const templateRoomMenuItem = document.querySelector("#room-menu-item");
+const templateRoomMessages = document.querySelector("#room-messages");
+const loader = document.getElementById('loader');
+const roomMenuLink = document.getElementById('rooms-list');
+const usernameInput = document.getElementById('username');
 usernameInput.focus();
 
-var messageInput = document.getElementById('input');
+const messageInput = document.getElementById('input');
+
 
 const youtubeShortLink = "https://youtu.be/";
 const youtubeWatchLink = "https://www.youtube.com/watch?v=";
@@ -23,8 +25,9 @@ const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
 const rooms = ['community', 'other'];
-let currentRoom = rooms[0];
+let currentRoom = null;
 
+//#region utils
 /*!
  * Sanitize and encode all HTML in a user-submitted string
  * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
@@ -37,6 +40,19 @@ const sanitizeHTML = (str) => {
     return temp.innerHTML;
 };
 
+const toggleClasses = (element, classes) => {
+    const currentClasses = element.classList.value.split(' ');
+    for (_class of classes) {
+        if (currentClasses.indexOf(_class) === -1) {
+            element.classList.add(_class);
+        } else {
+            element.classList.remove(_class);
+        }
+    }
+}
+//#endregion
+
+//#region message formatter
 const renderYoutubeVideo = (url) => {
     let src = "https://www.youtube.com/embed/";
 
@@ -195,6 +211,7 @@ const safelyTransformMessage = (message) => {
 
     return transformUrls(sanitizedMsg);
 };
+//#endregion
 
 const addMessageToList = (messageEl, room) => {
     const messages = document.querySelector(`[data-messages-room="${room}"]`);
@@ -214,7 +231,7 @@ const addOtherUserMessage = (user, message, room) => {
     clone.querySelector('[data-username]').textContent = user.username;
     clone.querySelector('[data-message]').innerHTML = message;
     addMessageToList(clone, room);
-}
+};
 
 const addUserStatusMessage = (message, room) => {
     const clone = document.importNode(templateStatusMessage.content, true);
@@ -247,47 +264,94 @@ const switchToChat = () => {
     messageInput.focus();
 };
 
+const switchToRoom = (room) => {
+    const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room=${room}]`);
+    const itemsMenuToEdit = [toBeCurrentRoomItemMenu];
+
+    const toBeCurrentRoomPanel = document.querySelector(`[data-room=${room}]`);
+    const roomPanelsToEdit = [toBeCurrentRoomPanel];
+
+    if (currentRoom) {
+        const currentRoomItemMenu = document.querySelector(`[data-menu-room=${currentRoom}]`);
+        itemsMenuToEdit.push(currentRoomItemMenu);
+
+        const currentRoomEl = document.querySelector(`[data-room=${currentRoom}]`);
+        roomPanelsToEdit.push(currentRoomEl);
+    }
+
+    // remove "active" classes on previous items and add them to the room about to be current
+    itemsMenuToEdit.map((_roomItem) => {
+        toggleClasses(_roomItem, ['font-medium', 'text-yellow-500']);
+    });
+
+    // switch to new room panel
+    roomPanelsToEdit.map((_roomEl) => {
+        toggleClasses(_roomEl, ['hidden']);
+    });
+
+    currentRoom = room;
+};
+
+const createRoom = (room) => {
+    // Create item for menu
+    const clone = document.importNode(templateRoomMenuItem.content, true);
+    const linkEl = clone.querySelector('a');
+    linkEl.setAttribute('href', `#${room}`);
+    linkEl.setAttribute('data-menu-room', room);
+    // TODO use an object for the room
+    linkEl.textContent = room;
+    roomMenuLink.appendChild(clone);
+    // End
+
+    // Create room panel
+    var form = document.getElementById('form');
+    var contentWrapper = document.getElementById('content-wrapper');
+
+    const cloneRoomPanel = document.importNode(templateRoomMessages.content, true);
+    cloneRoomPanel.querySelector('[data-room]').setAttribute('data-room', room);
+    cloneRoomPanel.querySelector('[data-title]').textContent = room;
+    cloneRoomPanel.querySelector('[data-messages-room]').setAttribute('data-messages-room', room);
+
+    contentWrapper.insertBefore(cloneRoomPanel, form);
+}
+
+const initChat = () => {
+    rooms.map(room => createRoom(room));
+    switchToRoom(rooms[0]);
+};
+
 var usernameForm = document.getElementById('username-form');
 usernameForm.addEventListener('submit', function (e) {
     var username = usernameInput.value;
     e.preventDefault();
     if (username) {
         socket.emit('user joined', username);
+        initChat();
         switchToChat();
     }
 });
 
-const toggleClasses = (element, classes) => {
-    const currentClasses = element.classList.value.split(' ');
-    for (_class of classes) {
-        if (currentClasses.indexOf(_class) === -1) {
-            element.classList.add(_class);
-        } else {
-            element.classList.remove(_class);
-        }
-    }
-}
-
-var form = document.getElementById('form');
-form.addEventListener('submit', async function (e) {
+var messageForm = document.getElementById('form');
+messageForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (messageInput.value) {
-        input.disabled = true;
-        toggleClasses(input, ['w-full', 'w-11/12']);
+        messageInput.disabled = true;
+        toggleClasses(messageInput, ['w-full', 'w-11/12']);
         toggleClasses(loader, ['hidden']);
-        var _message = await safelyTransformMessage(messageInput.value);
 
+        var _message = await safelyTransformMessage(messageInput.value);
         socket.emit('chat message', _message, currentRoom);
         addMyMessage(_message);
+
         toggleClasses(loader, ['block', 'hidden']);
         toggleClasses(input, ['w-full', 'w-11/12']);
         messageInput.value = '';
-        input.disabled = false;
-        input.focus();
+        messageInput.disabled = false;
+        messageInput.focus();
     }
 });
 
-input.addEventListener("input", () => {
+messageInput.addEventListener("input", () => {
     if (isTyping === false) {
         isTyping = true;
         socket.emit('user typing', currentRoom);
@@ -304,31 +368,7 @@ input.addEventListener("input", () => {
     }, TYPING_TIMER_LENGTH);
 });
 
-const switchToRoom = (room) => {
-    let toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room=${room}]`);
-    let currentRoomItemMenu = document.querySelector(`[data-menu-room=${currentRoom}]`);
-    if (toBeCurrentRoomItemMenu === null) {
-        // TODO creer l element
-        console.error(`Room item menu ${toBeCurrentRoomItemMenu} does not exist`);
-        return;
-    }
-
-    // remove "active" classes on previous items and them to the room about to be current
-    [currentRoomItemMenu, toBeCurrentRoomItemMenu].map((_roomItem) => {
-        toggleClasses(_roomItem, ['font-medium', 'text-yellow-500']);
-    });
-
-    // switch to new room panel
-    const toBeCurrentRoomEl = document.querySelector(`[data-room=${room}]`);
-    const currentRoomEl = document.querySelector(`[data-room=${currentRoom}]`);
-    [toBeCurrentRoomEl, currentRoomEl].map((_roomEl) => {
-        toggleClasses(_roomEl, ['hidden']);
-    });
-
-    currentRoom = room;
-};
-
-document.getElementById('rooms-list').addEventListener('click', (event) => {
+roomMenuLink.addEventListener('click', (event) => {
     const room = event.target.getAttribute('data-menu-room');
     if (room === null || room === currentRoom) {
         return;
@@ -336,6 +376,7 @@ document.getElementById('rooms-list').addEventListener('click', (event) => {
     switchToRoom(room);
 });
 
+//#region socket
 socket.on('user joined', function ({ user }) {
     var message = `${user.username} joined`;
     rooms.map(room => {
@@ -365,3 +406,4 @@ socket.on('stop typing', function ({ user, room }) {
         removeTypingMessage(user, room);
     }
 });
+//#endregion
