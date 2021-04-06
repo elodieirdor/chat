@@ -1,28 +1,33 @@
 var socket = io();
 
-var templateMessage = document.querySelector("#message");
-var templateMyMessage = document.querySelector("#my-message");
-var templateStatusMessage = document.querySelector("#status-message");
-var templateImg = document.querySelector("#img-message");
-var templateLinkWithImg = document.querySelector("#img-link-message");
-var templateLink = document.querySelector("#link-message");
-var templateYoutube = document.querySelector("#youtube-message");
-var templateAudio = document.querySelector("#audio-message");
-var templateVideo = document.querySelector("#video-message");
-
-var loader = document.getElementById('loader');
-
-var usernameInput = document.getElementById('username');
+const templateMessage = document.querySelector("#message");
+const templateMyMessage = document.querySelector("#my-message");
+const templateStatusMessage = document.querySelector("#status-message");
+const templateImg = document.querySelector("#img-message");
+const templateLinkWithImg = document.querySelector("#img-link-message");
+const templateLink = document.querySelector("#link-message");
+const templateYoutube = document.querySelector("#youtube-message");
+const templateAudio = document.querySelector("#audio-message");
+const templateVideo = document.querySelector("#video-message");
+const templateRoomMenuItem = document.querySelector("#room-menu-item");
+const templateRoomMessages = document.querySelector("#room-messages");
+const loader = document.getElementById('loader');
+const roomMenuLink = document.getElementById('rooms-list');
+const usernameInput = document.getElementById('username');
 usernameInput.focus();
 
-var messageInput = document.getElementById('input');
+const messageInput = document.getElementById('input');
+
 
 const youtubeShortLink = "https://youtu.be/";
 const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
+const rooms = ['community', 'other'];
+let currentRoom = null;
 
+//#region utils
 /*!
  * Sanitize and encode all HTML in a user-submitted string
  * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
@@ -35,6 +40,19 @@ const sanitizeHTML = (str) => {
     return temp.innerHTML;
 };
 
+const toggleClasses = (element, classes) => {
+    const currentClasses = element.classList.value.split(' ');
+    for (_class of classes) {
+        if (currentClasses.indexOf(_class) === -1) {
+            element.classList.add(_class);
+        } else {
+            element.classList.remove(_class);
+        }
+    }
+}
+//#endregion
+
+//#region message formatter
 const renderYoutubeVideo = (url) => {
     let src = "https://www.youtube.com/embed/";
 
@@ -193,8 +211,10 @@ const safelyTransformMessage = (message) => {
 
     return transformUrls(sanitizedMsg);
 };
+//#endregion
 
-const addMessageToList = (messageEl) => {
+const addMessageToList = (messageEl, room) => {
+    const messages = document.querySelector(`[data-messages-room="${room}"]`);
     messages.appendChild(messageEl);
     messages.scrollTo(0, messages.scrollHeight);
 };
@@ -202,30 +222,30 @@ const addMessageToList = (messageEl) => {
 const addMyMessage = (message) => {
     var clone = document.importNode(templateMyMessage.content, true);
     clone.querySelector('[data-message]').innerHTML = message;
-    addMessageToList(clone);
+    addMessageToList(clone, currentRoom);
 };
 
-const addOtherUserMessage = (user, message) => {
+const addOtherUserMessage = (user, message, room) => {
     var clone = document.importNode(templateMessage.content, true);
     clone.querySelector('img').setAttribute('src', user.image);
     clone.querySelector('[data-username]').textContent = user.username;
     clone.querySelector('[data-message]').innerHTML = message;
-    addMessageToList(clone);
-}
-
-const addUserStatusMessage = (message) => {
-    const clone = document.importNode(templateStatusMessage.content, true);
-    clone.querySelector('[data-message]').textContent = message;
-    addMessageToList(clone);
+    addMessageToList(clone, room);
 };
 
-const addTypingMessage = (message, user) => {
+const addUserStatusMessage = (message, room) => {
+    const clone = document.importNode(templateStatusMessage.content, true);
+    clone.querySelector('[data-message]').textContent = message;
+    addMessageToList(clone, room);
+};
+
+const addTypingMessage = (user, room) => {
     const clone = document.importNode(templateStatusMessage.content, true);
     const messageEl = clone.querySelector('[data-message]');
-    messageEl.textContent = message;
+    messageEl.textContent = `${user.username} is typing ...`;
     toggleClasses(messageEl, 'animate-pulse');
     messageEl.setAttribute('data-typing', user.id);
-    addMessageToList(clone);
+    addMessageToList(clone, room);
 };
 
 const removeTypingMessage = (user) => {
@@ -244,80 +264,146 @@ const switchToChat = () => {
     messageInput.focus();
 };
 
+const switchToRoom = (room) => {
+    const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room=${room}]`);
+    const itemsMenuToEdit = [toBeCurrentRoomItemMenu];
+
+    const toBeCurrentRoomPanel = document.querySelector(`[data-room=${room}]`);
+    const roomPanelsToEdit = [toBeCurrentRoomPanel];
+
+    if (currentRoom) {
+        const currentRoomItemMenu = document.querySelector(`[data-menu-room=${currentRoom}]`);
+        itemsMenuToEdit.push(currentRoomItemMenu);
+
+        const currentRoomEl = document.querySelector(`[data-room=${currentRoom}]`);
+        roomPanelsToEdit.push(currentRoomEl);
+    }
+
+    // remove "active" classes on previous items and add them to the room about to be current
+    itemsMenuToEdit.map((_roomItem) => {
+        toggleClasses(_roomItem, ['font-medium', 'text-yellow-500']);
+    });
+
+    // switch to new room panel
+    roomPanelsToEdit.map((_roomEl) => {
+        toggleClasses(_roomEl, ['hidden']);
+    });
+
+    currentRoom = room;
+};
+
+const createRoom = (room) => {
+    // Create item for menu
+    const clone = document.importNode(templateRoomMenuItem.content, true);
+    const linkEl = clone.querySelector('a');
+    linkEl.setAttribute('href', `#${room}`);
+    linkEl.setAttribute('data-menu-room', room);
+    // TODO use an object for the room
+    linkEl.textContent = room;
+    roomMenuLink.appendChild(clone);
+    // End
+
+    // Create room panel
+    var form = document.getElementById('form');
+    var contentWrapper = document.getElementById('content-wrapper');
+
+    const cloneRoomPanel = document.importNode(templateRoomMessages.content, true);
+    cloneRoomPanel.querySelector('[data-room]').setAttribute('data-room', room);
+    cloneRoomPanel.querySelector('[data-title]').textContent = room;
+    cloneRoomPanel.querySelector('[data-messages-room]').setAttribute('data-messages-room', room);
+
+    contentWrapper.insertBefore(cloneRoomPanel, form);
+}
+
+const initChat = () => {
+    rooms.map(room => createRoom(room));
+    switchToRoom(rooms[0]);
+};
+
 var usernameForm = document.getElementById('username-form');
 usernameForm.addEventListener('submit', function (e) {
     var username = usernameInput.value;
     e.preventDefault();
     if (username) {
         socket.emit('user joined', username);
+        initChat();
         switchToChat();
     }
 });
 
-const toggleClasses = (element, classes) => {
-    const currentClasses = element.classList.value.split(' ');
-    if (currentClasses.indexOf(classes) === -1) {
-        element.classList.add(classes);
-    } else {
-        element.classList.remove(classes);
-    }
-}
-
-var form = document.getElementById('form');
-form.addEventListener('submit', async function (e) {
+var messageForm = document.getElementById('form');
+messageForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (messageInput.value) {
-        input.disabled = true;
-        toggleClasses(input, ['w-full', 'w-11/12']);
+        messageInput.disabled = true;
+        toggleClasses(messageInput, ['w-full', 'w-11/12']);
         toggleClasses(loader, ['hidden']);
-        var _message = await safelyTransformMessage(messageInput.value);
 
-        socket.emit('chat message', _message);
+        var _message = await safelyTransformMessage(messageInput.value);
+        socket.emit('chat message', _message, currentRoom);
         addMyMessage(_message);
+
         toggleClasses(loader, ['block', 'hidden']);
         toggleClasses(input, ['w-full', 'w-11/12']);
         messageInput.value = '';
-        input.disabled = false;
-        input.focus();
+        messageInput.disabled = false;
+        messageInput.focus();
     }
 });
 
-input.addEventListener("input", event => {
+messageInput.addEventListener("input", () => {
     if (isTyping === false) {
         isTyping = true;
-        socket.emit('user typing');
+        socket.emit('user typing', currentRoom);
     }
     lastTypingTime = (new Date()).getTime();
 
     setTimeout(() => {
-      const typingTimer = (new Date()).getTime();
-      const timeDiff = typingTimer - lastTypingTime;
-      if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
-        socket.emit('stop typing');
-        isTyping = false;
-      }
+        const typingTimer = (new Date()).getTime();
+        const timeDiff = typingTimer - lastTypingTime;
+        if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
+            socket.emit('stop typing', currentRoom);
+            isTyping = false;
+        }
     }, TYPING_TIMER_LENGTH);
 });
 
+roomMenuLink.addEventListener('click', (event) => {
+    const room = event.target.getAttribute('data-menu-room');
+    if (room === null || room === currentRoom) {
+        return;
+    }
+    switchToRoom(room);
+});
+
+//#region socket
 socket.on('user joined', function ({ user }) {
     var message = `${user.username} joined`;
-    addUserStatusMessage(message);
+    rooms.map(room => {
+        addUserStatusMessage(message, room);
+    })
 });
 
 socket.on('user left', function ({ user }) {
     var message = `${user.username} left`;
-    addUserStatusMessage(message);
+    rooms.map(room => {
+        addUserStatusMessage(message, room);
+    })
 });
 
-socket.on('chat message', function ({ user, message }) {
-    addOtherUserMessage(user, message);
+socket.on('chat message', function ({ user, message, room }) {
+    addOtherUserMessage(user, message, room);
 });
 
-socket.on('user typing', function ({ user }) {
-    var message = `${user.username} is typing ...`;
-    addTypingMessage(message, user);
+socket.on('user typing', function ({ user, room }) {
+    if (room === currentRoom) {
+        addTypingMessage(user, room);
+    }
 });
 
-socket.on('stop typing', function ({ user }) {
-    removeTypingMessage(user);
+socket.on('stop typing', function ({ user, room }) {
+    if (room === currentRoom) {
+        removeTypingMessage(user, room);
+    }
 });
+//#endregion

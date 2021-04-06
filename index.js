@@ -9,7 +9,6 @@ const https = require('https').createServer({
 const io = require('socket.io')(https);
 const axios = require('axios');
 const HTMLParser = require('node-html-parser');
-const { exception } = require('console');
 
 const getRandomInt = (max = 99) => {
     return Math.floor(Math.random() * max);
@@ -84,19 +83,23 @@ app.post('/info-url', async (req, res) => {
     res.send(response);
 });
 
-// io.emit to send a message to all connected clients
-// socket.broadcast.emit to send a message to all connected clients except the sender
-
+// doc https://socket.io/docs/v4/emit-cheatsheet/
 io.on('connection', (socket) => {
     console.log('a user connected');
+
+    socket.join('community');
+    socket.join('other');
 
     socket.on('user joined', (username) => {
         socket.user = { username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg`, id: uniqid() };
         socket.broadcast.emit('user joined', { user: socket.user });
     });
 
-    socket.on('chat message', (msg) => {
-        socket.broadcast.emit('chat message', { message: msg, user: socket.user });
+    socket.on('chat message', (msg, room) => {
+        if (room === undefined) {
+            return;
+        }
+        socket.to(room).emit('chat message', { message: msg, user: socket.user, room });
     });
 
     socket.on('disconnect', () => {
@@ -106,12 +109,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('user typing', () => {
-        socket.broadcast.emit('user typing', { user: socket.user });
+    socket.on('user typing', (room) => {
+        console.log(room);
+        socket.to(room).emit('user typing', { user: socket.user, room });
     });
 
-    socket.on('stop typing', () => {
-        socket.broadcast.emit('stop typing', { user: socket.user });
+    socket.on('stop typing', (room) => {
+        socket.to(room).emit('stop typing', { user: socket.user, room });
     });
 });
 
