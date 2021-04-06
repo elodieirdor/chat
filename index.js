@@ -7,19 +7,9 @@ const https = require('https').createServer({
 }, app);
 // create a new instance of socket.io
 const io = require('socket.io')(https);
-const axios = require('axios');
-const HTMLParser = require('node-html-parser');
 
-const getRandomInt = (max = 99) => {
-    return Math.floor(Math.random() * max);
-}
-
-const uniqid = (prefix = "", random = false) => {
-    const sec = Date.now() * 1000 + Math.random() * 1000;
-    const id = sec.toString(16).replace(/\./g, "").padEnd(14, "0");
-
-    return `${prefix}${id}${random ? `.${Math.trunc(Math.random() * 100000000)}`:""}`;
-};
+const { uniqid, getRandomInt } = require('./utils/string')
+const { getMetadataFromUrl } = require('./utils/metadata-url')
 
 app.use(express.static(__dirname + '/public'));
 app.use(express.json()) // for parsing application/json
@@ -30,60 +20,16 @@ app.get('/', (req, res) => {
 
 app.post('/info-url', async (req, res) => {
     const response = {};
-    var urls = req.body.urls;
+    const urls = req.body.urls;
 
     for (let url of urls) {
-
-        var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
-        if (regexUrl.test(url) === false) {
-            throw `${url} is not an url`;
-        }
-        const content = { type: 'html', title: url, image: null };
-        try {
-            const metaResponse = await axios.get(url);
-            const mediaTypes = ['image', 'audio', 'video'];
-            let itemMedia = null;
-            for (mediaType of mediaTypes) {
-                if (metaResponse.headers['content-type'].indexOf(mediaType) === 0) {
-                    itemMedia = mediaType;
-                    break;
-                }
-            }
-
-            if (itemMedia) {
-                content.type = itemMedia;
-            } else {
-                var root = HTMLParser.parse(metaResponse.data);
-
-                // title
-                var metaTitle = root.querySelector('meta[property="og:title"]');
-                if (metaTitle) {
-                    content.title = metaTitle.getAttribute('content');
-                } else {
-                    metaTitle = root.querySelector('title');
-                    if (metaTitle) {
-                        content.title = metaTitle.text;
-                    }
-                }
-
-                // image 
-                var metaImage = root.querySelector('meta[property="og:image"]');
-                if (metaImage) {
-                    content.image = metaImage.getAttribute('content');
-                }
-            }
-        } catch (error) {
-            console.log(error);
-        }
-        response[url] = content;
+        response[url] = await getMetadataFromUrl(url);
     }
-
-    console.log(response);
 
     res.send(response);
 });
 
-// doc https://socket.io/docs/v4/emit-cheatsheet/
+// cheatsheet https://socket.io/docs/v4/emit-cheatsheet/
 io.on('connection', (socket) => {
     console.log('a user connected');
 
