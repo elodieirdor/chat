@@ -29,34 +29,59 @@ app.post('/info-url', async (req, res) => {
     res.send(response);
 });
 
+let onlineUsers = [];
+const channels = ['community', 'other'];
+
 // cheatsheet https://socket.io/docs/v4/emit-cheatsheet/
 io.on('connection', (socket) => {
     console.log('a user connected');
 
-    socket.join('community');
-    socket.join('other');
+    channels.map(channel => socket.join(channel));
 
     socket.on('user joined', (username) => {
-        socket.user = { username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg`, id: uniqid() };
+        socket.emit('welcome', { onlineUsers, channels });
+
+        socket.user = {
+            username,
+            image: `https://randomuser.me/api/portraits/lego/${getRandomInt(9)}.jpg`,
+            id: socket.id
+        };
+        onlineUsers = [...onlineUsers, socket.user];
+
         socket.broadcast.emit('user joined', { user: socket.user });
     });
 
-    socket.on('chat message', (msg, room) => {
-        if (room === undefined) {
+    socket.on('message', (msg, recipient) => {
+        if (recipient === undefined) {
             return;
         }
-        socket.to(room).emit('chat message', { message: msg, user: socket.user, room });
+
+        const date = new Date();
+        const timeStr = `${date.getHours()}:${date.getMinutes()}`;
+        const message = { content: msg, time: timeStr };
+        if (recipient.type === "channel") {
+            socket.to(recipient.id).emit('message', {
+                message,
+                user: socket.user,
+                room: recipient,
+            });
+        } else {
+            io.to(recipient.id).emit("private_message", {
+                message,
+                user: socket.user,
+            });
+        }
     });
 
     socket.on('disconnect', () => {
         if (socket.user) {
             console.log('user disconnected');
+            onlineUsers = onlineUsers.filter(_user => socket.user.id !== _user.id);
             io.emit('user left', { user: socket.user });
         }
     });
 
     socket.on('user typing', (room) => {
-        console.log(room);
         socket.to(room).emit('user typing', { user: socket.user, room });
     });
 
