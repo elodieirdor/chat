@@ -1,3 +1,6 @@
+// enable debug
+// localStorage.debug = '*';
+
 var socket = io();
 
 const templateMessage = document.querySelector("#message");
@@ -21,6 +24,7 @@ const messageInput = document.getElementById('input');
 
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
+let typingUsers = [];
 
 let currentRoom = null;
 
@@ -71,17 +75,94 @@ const addUserStatusMessage = (message, room) => {
     addMessageToList(clone, room);
 };
 
+const updateTypingNotification = (room) => {
+
+    console.log('úpdate typing notif')
+
+    const sentenceEl = document.querySelector('[data-typing="sentence"]');
+    if (room.type === 'user') {
+        sentenceEl.textContent = "is typing";
+        return;
+    }
+
+    const userTypingEl = document.querySelector('[data-typing="user"]');
+    if (typingUsers.length === 1) {
+        userTypingEl.textContent = typingUsers[0].username;
+        sentenceEl.textContent = " is typing";
+
+        return;
+    }
+    
+        if (typingUsers.length > 3) {
+            userTypingEl.textContent = `${typingUsers.length} users`;
+        } else {
+            const _usernames = typingUsers.map(user => user.username);
+            console.log(_usernames);
+            userTypingEl.textContent = `${_usernames.join(', ')} `;
+        }
+        sentenceEl.textContent = " are typing";
+}
+
 const addTypingMessage = (user, room) => {
-    const clone = document.importNode(templateStatusMessage.content, true);
-    const messageEl = clone.querySelector('[data-message]');
-    messageEl.textContent = `${user.username} is typing ...`;
-    toggleClasses(messageEl, ['animate-pulse']);
-    messageEl.setAttribute('data-typing', user.id);
-    addMessageToList(clone, room);
+    if (getUserFromList(user.id, typingUsers) !== null) {
+        return;
+    }
+
+    console.log('add typing message');
+    console.log(typingUsers.length);
+    console.table(typingUsers);
+
+    const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    const typingContainer = currentRoomEl.querySelector('[data-typing-container]');
+    if (typingUsers.length === 0) {
+        toggleClasses(typingContainer, ['hidden', 'active']);
+    }
+    typingUsers.push(user);
+    updateTypingNotification(room);
+
+    // const clone = document.importNode(templateStatusMessage.content, true);
+    // const messageEl = clone.querySelector('[data-message]');
+    // messageEl.textContent = `${user.username} is typing ...`;
+    // toggleClasses(messageEl, ['animate-pulse']);
+    // messageEl.setAttribute('data-typing', user.id);
+    // addMessageToList(clone, room);
 };
 
-const removeTypingMessage = (user) => {
-    document.querySelector(`[data-typing="${user.id}"]`).remove();
+const removeTypingMessage = (user, room) => {
+    console.log('remove typing message')
+    console.table(typingUsers);
+    const userIndex = typingUsers.findIndex(function (_user) {
+        return _user.id === user.id;
+    });
+    // console.log(userIndex);
+    if (userIndex === -1) {
+        return;
+    }
+    typingUsers.splice(userIndex, 1);
+    console.table(typingUsers);
+
+    const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    const typingContainer = currentRoomEl.querySelector('[data-typing-container]');
+    if (typingUsers.length === 0) {
+        console.log('toggle elenment')
+        console.table(typingContainer.classList);
+        toggleClasses(typingContainer, ['hidden', 'active']);
+        console.table(typingContainer.classList);
+        return;
+    }
+
+
+    // const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    // const typingContainer = currentRoomEl.querySelector('[data-typing-container]');
+    // console.log(typingContainer);
+    // if (typingUsers.length === 0) {
+    // toggleClasses(typingContainer, ['hidden', 'active']);
+    // }
+    if (room) {
+        updateTypingNotification(room);
+    }
+
+    // document.querySelector(`[data-typing="${user.id}"]`).remove();
 };
 
 const switchToChat = () => {
@@ -127,6 +208,7 @@ const switchToRoom = (room) => {
         notif.remove();
     }
 
+    typingUsers = [];
     currentRoom = room;
     messageInput.focus();
 };
@@ -181,7 +263,9 @@ const addUserToLists = (user, listElement) => {
 };
 
 const addUserToOnlineUsers = (user) => {
+    console.log('addUserToOnlineUsers')
     appOnlineUsers = [...appOnlineUsers, user];
+    console.log(appOnlineUsers);
     addUserToLists(user, onlineUsersMenuLink);
 };
 
@@ -191,7 +275,11 @@ const addUserToPrivateTalks = (user) => {
 };
 
 const removeUserFromOnlineUsers = (user) => {
-    onlineUsersMenuLink.querySelector(`[data-menu-user="${user.id}"]`).parentElement.remove();
+    const onlineUserLink = onlineUsersMenuLink.querySelector(`[data-menu-user="${user.id}"]`)
+    if (onlineUserLink === null) {
+        return;
+    }
+    onlineUserLink.parentElement.remove();
 
     // notify members who were private messenging
     const _user = getUserFromList(user.id, privateTalks);
@@ -200,6 +288,8 @@ const removeUserFromOnlineUsers = (user) => {
         addUserStatusMessage(message, createUserRoomObject(user));
         addNotReadNotification(user);
     }
+
+    removeTypingMessage(user);
 };
 
 var usernameForm = document.getElementById('username-form');
@@ -207,7 +297,8 @@ usernameForm.addEventListener('submit', function (e) {
     var username = usernameInput.value;
     e.preventDefault();
     if (username) {
-        socket.emit('user joined', username);
+        socket.emit('user_joined', username);
+        initSocketListener();
         switchToChat();
     }
 });
@@ -236,7 +327,7 @@ messageForm.addEventListener('submit', async function (e) {
 messageInput.addEventListener("input", () => {
     if (isTyping === false) {
         isTyping = true;
-        socket.emit('user typing', currentRoom);
+        socket.emit('typing', currentRoom);
     }
     lastTypingTime = (new Date()).getTime();
 
@@ -244,7 +335,7 @@ messageInput.addEventListener("input", () => {
         const typingTimer = (new Date()).getTime();
         const timeDiff = typingTimer - lastTypingTime;
         if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
-            socket.emit('stop typing', currentRoom);
+            socket.emit('stop_typing', currentRoom);
             isTyping = false;
         }
     }, TYPING_TIMER_LENGTH);
@@ -300,15 +391,6 @@ onlineUsersMenuLink.addEventListener('click', (event) => {
     switchToRoom(createUserRoomObject(user));
 });
 
-//#region socket
-socket.on('user joined', function ({ user }) {
-    addUserToOnlineUsers(user);
-});
-
-socket.on('user left', function ({ user }) {
-    removeUserFromOnlineUsers(user);
-});
-
 const addNotReadNotification = (user) => {
     if (currentRoom.id === user.id) {
         return;
@@ -324,46 +406,61 @@ const addNotReadNotification = (user) => {
     document.querySelector(`#private-list a[data-menu-room="${user.id}"]`).appendChild(clone);
 };
 
-socket.on('private_message', function ({ user, message }) {
-    // create the room if does not exist
-    if (document.querySelector(`[data-room="${user.id}"]`) === null) {
-        // add item to private menu
-        addUserToPrivateTalks(user);
-        createMessagesPanel(createUserRoomObject(user), user.username);
-    }
-    addOtherUserMessage(user, message, createUserRoomObject(user));
-
-    // add a small notification
-    addNotReadNotification(user);
-});
-
-socket.on('message', function ({ user, message, room }) {
-    addOtherUserMessage(user, message, room);
-});
-
-// socket.on('user typing', function ({ user, room }) {
-//     if (room === currentRoom.id) {
-//         addTypingMessage(user, room);
-//     }
-// });
-
-// socket.on('stop typing', function ({ user, room }) {
-//     if (room === currentRoom.id) {
-//         removeTypingMessage(user, room);
-//     }
-// });
-
-socket.on('welcome', function ({ onlineUsers, channels }) {
-    appOnlineUsers = onlineUsers;
-    appOnlineUsers.map(user => addUserToOnlineUsers(user));
-
-    const appRooms = [];
-    channels.map(channel => {
-        const room = createChannelRoomObject(channel);
-        appRooms.push(room);
-        createChannelRoom(room);
+const initSocketListener = () => {
+    socket.on('user_joined', function ({ user }) {
+        console.log(`user ${user.username} joined`);
+        addUserToOnlineUsers(user);
     });
-
-    switchToRoom(appRooms[0]);
-});
-//#endregion
+    
+    socket.on('user_left', function ({ user }) {
+        removeUserFromOnlineUsers(user);
+    });    
+    
+    socket.on('private_message', function ({ user, message }) {
+        // create the room if does not exist
+        if (document.querySelector(`[data-room="${user.id}"]`) === null) {
+            // add item to private menu
+            addUserToPrivateTalks(user);
+            createMessagesPanel(createUserRoomObject(user), user.username);
+        }
+        addOtherUserMessage(user, message, createUserRoomObject(user));
+    
+        // add a small notification
+        addNotReadNotification(user);
+    });
+    
+    socket.on('message', function ({ user, message, room }) {
+        addOtherUserMessage(user, message, room);
+    });
+    
+    socket.on('typing', function ({ user, room }) {
+        console.log('typing')
+        console.log(user)
+    
+        console.table(room)
+        console.table(currentRoom)
+        if (room.id === currentRoom.id) {
+            addTypingMessage(user, room);
+        }
+    });
+    
+    socket.on('stop_typing', function ({ user, room }) {
+        console.log('stop typing')
+        if (room.id === currentRoom.id) {
+            removeTypingMessage(user, room);
+        }
+    });
+    
+    socket.on('welcome', function ({ onlineUsers, channels }) {
+        onlineUsers.map(user => addUserToOnlineUsers(user));
+    
+        const appRooms = [];
+        channels.map(channel => {
+            const room = createChannelRoomObject(channel);
+            appRooms.push(room);
+            createChannelRoom(room);
+        });
+    
+        switchToRoom(appRooms[0]);
+    });
+};
