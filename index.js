@@ -8,8 +8,9 @@ const https = require('https').createServer({
 // create a new instance of socket.io
 const io = require('socket.io')(https);
 
-const { uniqid, getRandomInt } = require('./utils/string')
-const { getMetadataFromUrl } = require('./utils/metadata-url')
+const { getRandomInt } = require('./utils/string')
+const { getMetadataFromUrl } = require('./utils/metadata-url');
+const e = require('express');
 
 app.use(express.static(__dirname + '/public'));
 app.use(express.json()) // for parsing application/json
@@ -38,7 +39,7 @@ io.on('connection', (socket) => {
 
     channels.map(channel => socket.join(channel));
 
-    socket.on('user joined', (username) => {
+    socket.on('user_joined', (username) => {
         socket.emit('welcome', { onlineUsers, channels });
 
         socket.user = {
@@ -48,7 +49,7 @@ io.on('connection', (socket) => {
         };
         onlineUsers = [...onlineUsers, socket.user];
 
-        socket.broadcast.emit('user joined', { user: socket.user });
+        socket.broadcast.emit('user_joined', { user: socket.user });
     });
 
     socket.on('message', (msg, recipient) => {
@@ -77,16 +78,26 @@ io.on('connection', (socket) => {
         if (socket.user) {
             console.log('user disconnected');
             onlineUsers = onlineUsers.filter(_user => socket.user.id !== _user.id);
-            io.emit('user left', { user: socket.user });
+            io.emit('user_left', { user: socket.user });
         }
     });
 
-    socket.on('user typing', (room) => {
-        socket.to(room).emit('user typing', { user: socket.user, room });
+    socket.on('typing', (room) => {
+        if (room.type === "channel") {
+            socket.to(room.id).emit('typing', { user: socket.user, room });
+        } else {
+            const _targetRoom = {...room, ...{id:socket.user.id}};
+            io.to(room.id).emit('typing', { user: socket.user, room:_targetRoom });
+        }
     });
 
-    socket.on('stop typing', (room) => {
-        socket.to(room).emit('stop typing', { user: socket.user, room });
+    socket.on('stop_typing', (room) => {
+        if (room.type === "channel") {
+            socket.to(room.id).emit('stop_typing', { user: socket.user, room });
+        } else {
+            const _targetRoom = {...room, ...{id:socket.user.id}};
+            io.to(room.id).emit('stop_typing', { user: socket.user,room: _targetRoom });
+        }
     });
 });
 
