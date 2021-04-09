@@ -9,7 +9,8 @@ const https = require('https').createServer({
 const io = require('socket.io')(https);
 
 const { getRandomInt } = require('./utils/string')
-const { getMetadataFromUrl } = require('./utils/metadata-url')
+const { getMetadataFromUrl } = require('./utils/metadata-url');
+const e = require('express');
 
 app.use(express.static(__dirname + '/public'));
 app.use(express.json()) // for parsing application/json
@@ -82,11 +83,21 @@ io.on('connection', (socket) => {
     });
 
     socket.on('typing', (room) => {
-        socket.to(room.id).emit('typing', { user: socket.user, room });
+        if (room.type === "channel") {
+            socket.to(room.id).emit('typing', { user: socket.user, room });
+        } else {
+            const _targetRoom = {...room, ...{id:user.id}};
+            io.to(room.id).emit('typing', { user: socket.user, _targetRoom });
+        }
     });
 
     socket.on('stop_typing', (room) => {
-        socket.to(room.id).emit('stop_typing', { user: socket.user, room });
+        if (room.type === "channel") {
+            socket.to(room.id).emit('stop_typing', { user: socket.user, room });
+        } else {
+            const _targetRoom = {...room, ...{id:user.id}};
+            io.to(room.id).emit('stop_typing', { user: socket.user, _targetRoom });
+        }
     });
 });
 
