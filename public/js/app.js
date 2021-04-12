@@ -59,7 +59,7 @@ const addOtherUserMessage = (user, message, room) => {
     var clone = document.importNode(templateMessage.content, true);
     if (room.type === 'user') {
         clone.querySelector('.img-wrapper').remove();
-        clone.querySelector('[data-username]').remove;
+        clone.querySelector('[data-username]').remove();
     } else {
         clone.querySelector('img').setAttribute('src', user.image);
         clone.querySelector('[data-username]').textContent = user.username;
