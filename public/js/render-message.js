@@ -5,7 +5,6 @@ const templateYoutube = document.querySelector("#youtube-message");
 const templateAudio = document.querySelector("#audio-message");
 const templateVideo = document.querySelector("#video-message");
 
-
 const youtubeShortLink = "https://youtu.be/";
 const youtubeWatchLink = "https://www.youtube.com/watch?v=";
 
