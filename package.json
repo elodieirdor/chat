@@ -5,7 +5,8 @@
   "author": "Elodie Irdor",
   "license": "ISC",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "set DEBUG=engine,socket.io* & node index.js"
   },
   "dependencies": {
     "axios": "^0.21.1",

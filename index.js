@@ -7,19 +7,10 @@ const https = require('https').createServer({
 }, app);
 // create a new instance of socket.io
 const io = require('socket.io')(https);
-const axios = require('axios');
-const HTMLParser = require('node-html-parser');
 
-const getRandomInt = (max = 99) => {
-    return Math.floor(Math.random() * max);
-}
-
-const uniqid = (prefix = "", random = false) => {
-    const sec = Date.now() * 1000 + Math.random() * 1000;
-    const id = sec.toString(16).replace(/\./g, "").padEnd(14, "0");
-
-    return `${prefix}${id}${random ? `.${Math.trunc(Math.random() * 100000000)}`:""}`;
-};
+const { getRandomInt } = require('./utils/string')
+const { getMetadataFromUrl } = require('./utils/metadata-url');
+const e = require('express');
 
 app.use(express.static(__dirname + '/public'));
 app.use(express.json()) // for parsing application/json
@@ -30,92 +21,83 @@ app.get('/', (req, res) => {
 
 app.post('/info-url', async (req, res) => {
     const response = {};
-    var urls = req.body.urls;
+    const urls = req.body.urls;
 
     for (let url of urls) {
-
-        var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
-        if (regexUrl.test(url) === false) {
-            throw `${url} is not an url`;
-        }
-        const content = { type: 'html', title: url, image: null };
-        try {
-            const metaResponse = await axios.get(url);
-            const mediaTypes = ['image', 'audio', 'video'];
-            let itemMedia = null;
-            for (mediaType of mediaTypes) {
-                if (metaResponse.headers['content-type'].indexOf(mediaType) === 0) {
-                    itemMedia = mediaType;
-                    break;
-                }
-            }
-
-            if (itemMedia) {
-                content.type = itemMedia;
-            } else {
-                var root = HTMLParser.parse(metaResponse.data);
-
-                // title
-                var metaTitle = root.querySelector('meta[property="og:title"]');
-                if (metaTitle) {
-                    content.title = metaTitle.getAttribute('content');
-                } else {
-                    metaTitle = root.querySelector('title');
-                    if (metaTitle) {
-                        content.title = metaTitle.text;
-                    }
-                }
-
-                // image 
-                var metaImage = root.querySelector('meta[property="og:image"]');
-                if (metaImage) {
-                    content.image = metaImage.getAttribute('content');
-                }
-            }
-        } catch (error) {
-            console.log(error);
-        }
-        response[url] = content;
+        response[url] = await getMetadataFromUrl(url);
     }
-
-    console.log(response);
 
     res.send(response);
 });
 
-// doc https://socket.io/docs/v4/emit-cheatsheet/
+let onlineUsers = [];
+const channels = ['community', 'other'];
+
+// cheatsheet https://socket.io/docs/v4/emit-cheatsheet/
 io.on('connection', (socket) => {
     console.log('a user connected');
 
-    socket.join('community');
-    socket.join('other');
+    channels.map(channel => socket.join(channel));
 
-    socket.on('user joined', (username) => {
-        socket.user = { username, image: `https://randomuser.me/api/portraits/women/${getRandomInt()}.jpg`, id: uniqid() };
-        socket.broadcast.emit('user joined', { user: socket.user });
+    socket.on('user_joined', (username) => {
+        socket.emit('welcome', { onlineUsers, channels });
+
+        socket.user = {
+            username,
+            image: `https://randomuser.me/api/portraits/lego/${getRandomInt(9)}.jpg`,
+            id: socket.id
+        };
+        onlineUsers = [...onlineUsers, socket.user];
+
+        socket.broadcast.emit('user_joined', { user: socket.user });
     });
 
-    socket.on('chat message', (msg, room) => {
-        if (room === undefined) {
+    socket.on('message', (msg, recipient) => {
+        if (recipient === undefined) {
             return;
         }
-        socket.to(room).emit('chat message', { message: msg, user: socket.user, room });
+
+        const date = new Date();
+        const timeStr = `${date.getHours()}:${date.getMinutes()}`;
+        const message = { content: msg, time: timeStr };
+        if (recipient.type === "channel") {
+            socket.to(recipient.id).emit('message', {
+                message,
+                user: socket.user,
+                room: recipient,
+            });
+        } else {
+            io.to(recipient.id).emit("private_message", {
+                message,
+                user: socket.user,
+            });
+        }
     });
 
     socket.on('disconnect', () => {
         if (socket.user) {
             console.log('user disconnected');
-            io.emit('user left', { user: socket.user });
+            onlineUsers = onlineUsers.filter(_user => socket.user.id !== _user.id);
+            io.emit('user_left', { user: socket.user });
         }
     });
 
-    socket.on('user typing', (room) => {
-        console.log(room);
-        socket.to(room).emit('user typing', { user: socket.user, room });
+    socket.on('typing', (room) => {
+        if (room.type === "channel") {
+            socket.to(room.id).emit('typing', { user: socket.user, room });
+        } else {
+            const _targetRoom = { ...room, ...{ id: socket.user.id } };
+            io.to(room.id).emit('typing', { user: socket.user, room: _targetRoom });
+        }
     });
 
-    socket.on('stop typing', (room) => {
-        socket.to(room).emit('stop typing', { user: socket.user, room });
+    socket.on('stop_typing', (room) => {
+        if (room.type === "channel") {
+            socket.to(room.id).emit('stop_typing', { user: socket.user, room });
+        } else {
+            const _targetRoom = { ...room, ...{ id: socket.user.id } };
+            io.to(room.id).emit('stop_typing', { user: socket.user, room: _targetRoom });
+        }
     });
 });
 

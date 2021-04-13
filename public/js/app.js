@@ -1,235 +1,71 @@
+// enable debug
+// localStorage.debug = '*';
+
 var socket = io();
 
 const templateMessage = document.querySelector("#message");
 const templateMyMessage = document.querySelector("#my-message");
 const templateStatusMessage = document.querySelector("#status-message");
-const templateImg = document.querySelector("#img-message");
-const templateLinkWithImg = document.querySelector("#img-link-message");
-const templateLink = document.querySelector("#link-message");
-const templateYoutube = document.querySelector("#youtube-message");
-const templateAudio = document.querySelector("#audio-message");
-const templateVideo = document.querySelector("#video-message");
 const templateRoomMenuItem = document.querySelector("#room-menu-item");
 const templateRoomMessages = document.querySelector("#room-messages");
+const templateUserMenuItem = document.querySelector("#user-menu-item");
+const templateNotif = document.querySelector("#notif");
+
 const loader = document.getElementById('loader');
-const roomMenuLink = document.getElementById('rooms-list');
+
+const roomsMenuLink = document.getElementById('rooms-list');
+const onlineUsersMenuLink = document.getElementById('users-list');
+const privateMenuLink = document.getElementById('private-list');
+
 const usernameInput = document.getElementById('username');
 usernameInput.focus();
 
 const messageInput = document.getElementById('input');
 
-
-const youtubeShortLink = "https://youtu.be/";
-const youtubeWatchLink = "https://www.youtube.com/watch?v=";
-
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
-const rooms = ['community', 'other'];
+let typingUsers = [];
+
 let currentRoom = null;
 
-//#region utils
-/*!
- * Sanitize and encode all HTML in a user-submitted string
- * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
- * @param  {String} str  The user-submitted string
- * @return {String} str  The sanitized string
- */
-const sanitizeHTML = (str) => {
-    var temp = document.createElement('div');
-    temp.textContent = str;
-    return temp.innerHTML;
+let appOnlineUsers = [];
+let privateTalks = [];
+
+const createChannelRoomObject = (roomId) => {
+    return { type: 'channel', id: roomId };
 };
 
-const toggleClasses = (element, classes) => {
-    const currentClasses = element.classList.value.split(' ');
-    for (_class of classes) {
-        if (currentClasses.indexOf(_class) === -1) {
-            element.classList.add(_class);
-        } else {
-            element.classList.remove(_class);
-        }
-    }
-}
-//#endregion
-
-//#region message formatter
-const renderYoutubeVideo = (url) => {
-    let src = "https://www.youtube.com/embed/";
-
-    if (url.indexOf(youtubeShortLink) === 0) {
-        src += url.substring(youtubeShortLink.length);
-    } else {
-        if (url.indexOf(youtubeWatchLink) === 0) {
-            src += url.substring(youtubeWatchLink.length);
-        }
-    }
-
-    const clone = document.importNode(templateYoutube.content, true);
-    clone.querySelector('iframe').setAttribute('src', src);
-
-    // meed this because we are not appending the element directly to the dom
-    var temp = document.createElement('div');
-    temp.appendChild(clone);
-
-    return temp.innerHTML;
-}
-
-const getFileExtension = (url) => {
-    const pathname = new URL(url).pathname;
-
-    return pathname.substring(pathname.length - 3);
-}
-
-const renderImgElement = (url) => {
-    const clone = document.importNode(templateImg.content, true);
-    clone.querySelector('a').setAttribute('href', url);
-    clone.querySelector('img').setAttribute('src', url);
-
-    // meed this because we are not appending the element directly to the dom
-    var temp = document.createElement('div');
-    temp.appendChild(clone);
-
-    return temp.innerHTML;
+const createUserRoomObject = (user) => {
+    return { type: 'user', id: user.id };
 };
-
-const renderAudioElement = (url) => {
-    const clone = document.importNode(templateAudio.content, true);
-    const extension = getFileExtension(url);
-    const type = getFileExtension(url) === 'mp3' ? 'mpeg' : extension;
-
-    clone.querySelector('source').setAttribute('src', url);
-    clone.querySelector('source').setAttribute('type', `audio/${type}`);
-    // meed this because we are not appending the element directly to the dom
-    var temp = document.createElement('div');
-    temp.appendChild(clone);
-
-    return temp.innerHTML;
-};
-
-const renderVideoElement = (url) => {
-    const clone = document.importNode(templateVideo.content, true);
-    const type = getFileExtension(url);
-
-    clone.querySelector('source').setAttribute('src', url);
-    clone.querySelector('source').setAttribute('type', `video/${type}`);
-    // meed this because we are not appending the element directly to the dom
-    var temp = document.createElement('div');
-    temp.appendChild(clone);
-
-    return temp.innerHTML;
-};
-
-const renderLinkWithImage = (title, image, url) => {
-    const clone = document.importNode(templateLinkWithImg.content, true);
-    clone.querySelector('a').setAttribute('href', url);
-    clone.querySelector('img').setAttribute('src', image);
-    clone.querySelector('[data-title]').textContent = title;
-
-    // meed this because we are not appending the element directly to the dom
-    var temp = document.createElement('div');
-    temp.appendChild(clone);
-
-    return temp.innerHTML;
-};
-
-const renderLink = (title, url) => {
-    const clone = document.importNode(templateLink.content, true);
-    clone.querySelector('a').setAttribute('href', url);
-    clone.querySelector('a').textContent = title;
-
-    // meed this because we are not appending the element directly to the dom
-    var temp = document.createElement('div');
-    temp.appendChild(clone);
-
-    return temp.innerHTML;
-};
-
-const renderHtmlForLink = (url, urlData) => {
-    // prevent wrong clickable link in the browser
-    if (url.indexOf('http', 0) === -1) {
-        url = `https://${url}`;
-    }
-
-    if (urlData.type === 'image') {
-        return renderImgElement(url);
-    }
-
-    if (urlData.type === 'audio') {
-        return renderAudioElement(url);
-    }
-
-    if (urlData.type === 'video') {
-        return renderVideoElement(url);
-    }
-
-    const isYoutubeLink = url.indexOf(youtubeShortLink) === 0
-        || url.indexOf(youtubeWatchLink) === 0;
-    if (isYoutubeLink) {
-        return renderYoutubeVideo(url);
-    }
-
-    if (urlData.type === 'html' && urlData.image) {
-        return renderLinkWithImage(urlData.title, urlData.image, url);
-    }
-
-    return renderLink(urlData.title, url);
-};
-
-const transformUrls = async (message) => {
-    var regexUrl = /(http:\/\/|https:\/\/)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
-    var matches = message.match(regexUrl);
-
-    if (matches === null) {
-        return message;
-    }
-
-    // call api to get url data
-    var response = await fetch(`/info-url`, {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ urls: matches })
-    });
-
-    // return an array like ["matchString1":{type:'html',title:'title', image:'image_url'}]
-    var urlData = await response.json();
-
-    var words = message.split(' ');
-    for (let i in words) {
-        var word = words[i];
-        if (urlData[word]) {
-            words[i] = renderHtmlForLink(word, urlData[word]);
-        }
-    }
-
-    return words.join(' ');
-};
-
-const safelyTransformMessage = (message) => {
-    var sanitizedMsg = sanitizeHTML(message);
-
-    return transformUrls(sanitizedMsg);
-};
-//#endregion
 
 const addMessageToList = (messageEl, room) => {
-    const messages = document.querySelector(`[data-messages-room="${room}"]`);
+    const messages = document.querySelector(`[data-messages-room="${room.id}"]`);
     messages.appendChild(messageEl);
     messages.scrollTo(0, messages.scrollHeight);
 };
 
 const addMyMessage = (message) => {
-    var clone = document.importNode(templateMyMessage.content, true);
+    const date = new Date();
+    const timeStr = `${date.getHours()}:${date.getMinutes()}`;
+
+    const clone = document.importNode(templateMyMessage.content, true);
     clone.querySelector('[data-message]').innerHTML = message;
+    clone.querySelector('[data-time]').textContent = timeStr;
     addMessageToList(clone, currentRoom);
 };
 
 const addOtherUserMessage = (user, message, room) => {
     var clone = document.importNode(templateMessage.content, true);
-    clone.querySelector('img').setAttribute('src', user.image);
-    clone.querySelector('[data-username]').textContent = user.username;
-    clone.querySelector('[data-message]').innerHTML = message;
+    if (room.type === 'user') {
+        clone.querySelector('.img-wrapper').remove();
+        clone.querySelector('[data-username]').remove();
+    } else {
+        clone.querySelector('img').setAttribute('src', user.image);
+        clone.querySelector('[data-username]').textContent = user.username;
+    }
+    clone.querySelector('[data-message]').innerHTML = message.content;
+    clone.querySelector('[data-time]').textContent = message.time;
     addMessageToList(clone, room);
 };
 
@@ -239,17 +75,67 @@ const addUserStatusMessage = (message, room) => {
     addMessageToList(clone, room);
 };
 
+const updateTypingNotification = (room) => {
+    const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    const sentenceEl = currentRoomEl.querySelector('[data-typing="sentence"]');
+    if (room.type === 'user') {
+        sentenceEl.textContent = " is typing";
+        return;
+    }
+
+    const userTypingEl = document.querySelector('[data-typing="user"]');
+    if (typingUsers.length === 1) {
+        userTypingEl.textContent = typingUsers[0].username;
+        sentenceEl.textContent = " is typing";
+
+        return;
+    }
+
+    if (typingUsers.length > 3) {
+        userTypingEl.textContent = `${typingUsers.length} users`;
+    } else {
+        const _usernames = typingUsers.map(user => user.username);
+        userTypingEl.textContent = `${_usernames.join(', ')} `;
+    }
+    sentenceEl.textContent = " are typing";
+}
+
 const addTypingMessage = (user, room) => {
-    const clone = document.importNode(templateStatusMessage.content, true);
-    const messageEl = clone.querySelector('[data-message]');
-    messageEl.textContent = `${user.username} is typing ...`;
-    toggleClasses(messageEl, 'animate-pulse');
-    messageEl.setAttribute('data-typing', user.id);
-    addMessageToList(clone, room);
+    if (getUserFromList(user.id, typingUsers) !== null) {
+        return;
+    }
+
+    const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    const typingContainer = currentRoomEl.querySelector('[data-typing-container]');
+    if (typingUsers.length === 0) {
+        toggleClasses(typingContainer, ['hidden', 'active']);
+    }
+    typingUsers.push(user);
+    updateTypingNotification(room);
 };
 
-const removeTypingMessage = (user) => {
-    document.querySelector(`[data-typing="${user.id}"]`).remove();
+const removeTypingMessage = (user, room) => {
+
+    const userIndex = typingUsers.findIndex(function (_user) {
+        return _user.id === user.id;
+    });
+
+    if (userIndex === -1) {
+        return;
+    }
+
+    typingUsers.splice(userIndex, 1);
+
+    const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    const typingContainer = currentRoomEl.querySelector('[data-typing-container]');
+    if (typingUsers.length === 0) {
+        toggleClasses(typingContainer, ['hidden', 'active']);
+        return;
+    }
+
+    if (room) {
+        updateTypingNotification(room);
+    }
 };
 
 const switchToChat = () => {
@@ -265,68 +151,135 @@ const switchToChat = () => {
 };
 
 const switchToRoom = (room) => {
-    const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room=${room}]`);
+    const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room="${room.id}"]`);
     const itemsMenuToEdit = [toBeCurrentRoomItemMenu];
 
-    const toBeCurrentRoomPanel = document.querySelector(`[data-room=${room}]`);
+    const toBeCurrentRoomPanel = document.querySelector(`[data-room="${room.id}"]`);
     const roomPanelsToEdit = [toBeCurrentRoomPanel];
 
     if (currentRoom) {
-        const currentRoomItemMenu = document.querySelector(`[data-menu-room=${currentRoom}]`);
+        const currentRoomItemMenu = document.querySelector(`nav .active`);
         itemsMenuToEdit.push(currentRoomItemMenu);
 
-        const currentRoomEl = document.querySelector(`[data-room=${currentRoom}]`);
+        const currentRoomEl = document.querySelector(`#content-wrapper .active`);
         roomPanelsToEdit.push(currentRoomEl);
     }
 
     // remove "active" classes on previous items and add them to the room about to be current
     itemsMenuToEdit.map((_roomItem) => {
-        toggleClasses(_roomItem, ['font-medium', 'text-yellow-500']);
+        toggleClasses(_roomItem, ['font-medium', 'text-yellow-500', 'active']);
     });
 
     // switch to new room panel
     roomPanelsToEdit.map((_roomEl) => {
-        toggleClasses(_roomEl, ['hidden']);
+        toggleClasses(_roomEl, ['hidden', 'active']);
     });
 
+    // remove notif icon if exist
+    const notif = document.querySelector(`[data-notif="${room.id}"]`);
+    if (notif) {
+        notif.remove();
+    }
+
+    typingUsers = [];
     currentRoom = room;
+    messageInput.focus();
 };
 
-const createRoom = (room) => {
-    // Create item for menu
-    const clone = document.importNode(templateRoomMenuItem.content, true);
-    const linkEl = clone.querySelector('a');
-    linkEl.setAttribute('href', `#${room}`);
-    linkEl.setAttribute('data-menu-room', room);
-    // TODO use an object for the room
-    linkEl.textContent = room;
-    roomMenuLink.appendChild(clone);
-    // End
-
-    // Create room panel
+const createMessagesPanel = (room, title, image = null) => {
     var form = document.getElementById('form');
     var contentWrapper = document.getElementById('content-wrapper');
 
     const cloneRoomPanel = document.importNode(templateRoomMessages.content, true);
-    cloneRoomPanel.querySelector('[data-room]').setAttribute('data-room', room);
-    cloneRoomPanel.querySelector('[data-title]').textContent = room;
-    cloneRoomPanel.querySelector('[data-messages-room]').setAttribute('data-messages-room', room);
+    cloneRoomPanel.querySelector('[data-room]').setAttribute('data-room', room.id);
+    cloneRoomPanel.querySelector('[data-messages-room]').setAttribute('data-messages-room', room.id);
+    cloneRoomPanel.querySelector('[data-title]').textContent = title;
 
+    const img = cloneRoomPanel.querySelector('img');
+    if (image) {
+        img.setAttribute('src', image);
+    } else {
+        img.remove();
+    }
     contentWrapper.insertBefore(cloneRoomPanel, form);
 }
 
-const initChat = () => {
-    rooms.map(room => createRoom(room));
-    switchToRoom(rooms[0]);
+const createChannelRoom = (room) => {
+    // Create item for menu
+    const clone = document.importNode(templateRoomMenuItem.content, true);
+    const linkEl = clone.querySelector('a');
+    linkEl.setAttribute('href', `#${room.id}`);
+    linkEl.setAttribute('data-menu-room', room.id);
+    linkEl.textContent = room.id;
+    roomsMenuLink.appendChild(clone);
+
+    // Create room panel
+    createMessagesPanel(room, room.id);
 };
+
+
+const addUserToLists = (user, listElement) => {
+    const clone = document.importNode(templateUserMenuItem.content, true);
+
+    const linkEl = clone.querySelector('a');
+    linkEl.setAttribute('href', `#${slugify(user.username)}`);
+    linkEl.setAttribute('data-menu-user', user.id);
+    linkEl.setAttribute('data-menu-room', user.id);
+
+    const imgEl = clone.querySelector('img');
+    imgEl.setAttribute('src', user.image);
+
+    const nameEl = clone.querySelector('[data-name]');
+    nameEl.textContent = user.username;
+
+    listElement.appendChild(clone);
+};
+
+const addUserToOnlineUsers = (user) => {
+    appOnlineUsers = [...appOnlineUsers, user];
+    addUserToLists(user, onlineUsersMenuLink);
+};
+
+const addUserToPrivateTalks = (user) => {
+    privateTalks = [...privateTalks, user];
+    addUserToLists(user, privateMenuLink);
+};
+
+const removeUserFromOnlineUsers = (user) => {
+    const onlineUserLink = onlineUsersMenuLink.querySelector(`[data-menu-user="${user.id}"]`)
+    if (onlineUserLink === null) {
+        return;
+    }
+    onlineUserLink.parentElement.remove();
+
+    // notify members who were private messenging
+    const _user = getUserFromList(user.id, privateTalks);
+    if (_user !== null) {
+        const message = `${user.username} has left the chat.`;
+        addUserStatusMessage(message, createUserRoomObject(user));
+        addNotReadNotification(user);
+    }
+
+    removeTypingMessage(user);
+};
+
+const getUserFromList = (userId, list) => {
+    const ret = list.filter(_user => _user.id == userId);
+    if (ret.length === 0) {
+        console.info(`User ${userId} could not be found in the online users`);
+        return null;
+    }
+
+    return ret[0];
+}
 
 var usernameForm = document.getElementById('username-form');
 usernameForm.addEventListener('submit', function (e) {
     var username = usernameInput.value;
     e.preventDefault();
     if (username) {
-        socket.emit('user joined', username);
-        initChat();
+        socket.emit('user_joined', username);
+        initSocketListener();
         switchToChat();
     }
 });
@@ -339,8 +292,9 @@ messageForm.addEventListener('submit', async function (e) {
         toggleClasses(messageInput, ['w-full', 'w-11/12']);
         toggleClasses(loader, ['hidden']);
 
-        var _message = await safelyTransformMessage(messageInput.value);
-        socket.emit('chat message', _message, currentRoom);
+        const _message = await safelyTransformMessage(messageInput.value);
+
+        socket.emit('message', _message, currentRoom);
         addMyMessage(_message);
 
         toggleClasses(loader, ['block', 'hidden']);
@@ -354,7 +308,7 @@ messageForm.addEventListener('submit', async function (e) {
 messageInput.addEventListener("input", () => {
     if (isTyping === false) {
         isTyping = true;
-        socket.emit('user typing', currentRoom);
+        socket.emit('typing', currentRoom);
     }
     lastTypingTime = (new Date()).getTime();
 
@@ -362,48 +316,116 @@ messageInput.addEventListener("input", () => {
         const typingTimer = (new Date()).getTime();
         const timeDiff = typingTimer - lastTypingTime;
         if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
-            socket.emit('stop typing', currentRoom);
+            socket.emit('stop_typing', currentRoom);
             isTyping = false;
         }
     }, TYPING_TIMER_LENGTH);
 });
 
-roomMenuLink.addEventListener('click', (event) => {
+roomsMenuLink.addEventListener('click', (event) => {
     const room = event.target.getAttribute('data-menu-room');
-    if (room === null || room === currentRoom) {
+    if (room === null || room === currentRoom.id) {
         return;
     }
-    switchToRoom(room);
+    switchToRoom(createChannelRoomObject(room));
 });
 
-//#region socket
-socket.on('user joined', function ({ user }) {
-    var message = `${user.username} joined`;
-    rooms.map(room => {
-        addUserStatusMessage(message, room);
-    })
-});
-
-socket.on('user left', function ({ user }) {
-    var message = `${user.username} left`;
-    rooms.map(room => {
-        addUserStatusMessage(message, room);
-    })
-});
-
-socket.on('chat message', function ({ user, message, room }) {
-    addOtherUserMessage(user, message, room);
-});
-
-socket.on('user typing', function ({ user, room }) {
-    if (room === currentRoom) {
-        addTypingMessage(user, room);
+privateMenuLink.addEventListener('click', (event) => {
+    const menuRoom = event.target.closest('[data-menu-room]');
+    const userId = menuRoom.getAttribute('data-menu-room');
+    if (userId === null || userId === currentRoom.id) {
+        return;
     }
+
+    switchToRoom(createUserRoomObject({ id: userId }));
 });
 
-socket.on('stop typing', function ({ user, room }) {
-    if (room === currentRoom) {
-        removeTypingMessage(user, room);
+onlineUsersMenuLink.addEventListener('click', (event) => {
+    const menuRoom = event.target.closest('[data-menu-room]');
+    const userId = menuRoom.getAttribute('data-menu-room');
+    if (userId === null || userId == currentRoom.id) {
+        return;
     }
+
+    const user = getUserFromList(userId, appOnlineUsers);
+    if (user === null) {
+        return;
+    }
+
+    // create the user room if does exist
+    if (document.querySelector(`[data-room="${user.id}"]`) === null) {
+        // add item to private menu
+        addUserToPrivateTalks(user);
+        createMessagesPanel(createUserRoomObject(user), user.username, user.image);
+    }
+
+    switchToRoom(createUserRoomObject(user));
 });
-//#endregion
+
+const addNotReadNotification = (user) => {
+    if (currentRoom.id === user.id) {
+        return;
+    }
+
+    const notif = document.querySelector(`[data-notif="${user.id}"]`);
+    if (notif !== null) {
+        return;
+    }
+    const clone = document.importNode(templateNotif.content, true);
+    clone.querySelector('[data-notif]').setAttribute('data-notif', user.id);
+
+    document.querySelector(`#private-list a[data-menu-room="${user.id}"]`).appendChild(clone);
+};
+
+const initSocketListener = () => {
+    socket.on('user_joined', function ({ user }) {
+        console.log(`user ${user.username} joined`);
+        addUserToOnlineUsers(user);
+    });
+
+    socket.on('user_left', function ({ user }) {
+        removeUserFromOnlineUsers(user);
+    });
+
+    socket.on('private_message', function ({ user, message }) {
+        // create the room if does not exist
+        if (document.querySelector(`[data-room="${user.id}"]`) === null) {
+            // add item to private menu
+            addUserToPrivateTalks(user);
+            createMessagesPanel(createUserRoomObject(user), user.username);
+        }
+        addOtherUserMessage(user, message, createUserRoomObject(user));
+
+        // add a small notification
+        addNotReadNotification(user);
+    });
+
+    socket.on('message', function ({ user, message, room }) {
+        addOtherUserMessage(user, message, room);
+    });
+
+    socket.on('typing', function ({ user, room }) {
+        if (room.id === currentRoom.id) {
+            addTypingMessage(user, room);
+        }
+    });
+
+    socket.on('stop_typing', function ({ user, room }) {
+        if (room.id === currentRoom.id) {
+            removeTypingMessage(user, room);
+        }
+    });
+
+    socket.on('welcome', function ({ onlineUsers, channels }) {
+        onlineUsers.map(user => addUserToOnlineUsers(user));
+
+        const appRooms = [];
+        channels.map(channel => {
+            const room = createChannelRoomObject(channel);
+            appRooms.push(room);
+            createChannelRoom(room);
+        });
+
+        switchToRoom(appRooms[0]);
+    });
+};
