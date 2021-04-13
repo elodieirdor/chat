@@ -86,8 +86,8 @@ io.on('connection', (socket) => {
         if (room.type === "channel") {
             socket.to(room.id).emit('typing', { user: socket.user, room });
         } else {
-            const _targetRoom = {...room, ...{id:user.id}};
-            io.to(room.id).emit('typing', { user: socket.user, _targetRoom });
+            const _targetRoom = { ...room, ...{ id: socket.user.id } };
+            io.to(room.id).emit('typing', { user: socket.user, room: _targetRoom });
         }
     });
 
@@ -95,8 +95,8 @@ io.on('connection', (socket) => {
         if (room.type === "channel") {
             socket.to(room.id).emit('stop_typing', { user: socket.user, room });
         } else {
-            const _targetRoom = {...room, ...{id:user.id}};
-            io.to(room.id).emit('stop_typing', { user: socket.user, _targetRoom });
+            const _targetRoom = { ...room, ...{ id: socket.user.id } };
+            io.to(room.id).emit('stop_typing', { user: socket.user, room: _targetRoom });
         }
     });
 });

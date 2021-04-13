@@ -59,7 +59,7 @@ const addOtherUserMessage = (user, message, room) => {
     var clone = document.importNode(templateMessage.content, true);
     if (room.type === 'user') {
         clone.querySelector('.img-wrapper').remove();
-        clone.querySelector('[data-username]').remove;
+        clone.querySelector('[data-username]').remove();
     } else {
         clone.querySelector('img').setAttribute('src', user.image);
         clone.querySelector('[data-username]').textContent = user.username;
@@ -79,7 +79,8 @@ const updateTypingNotification = (room) => {
 
     console.log('úpdate typing notif')
 
-    const sentenceEl = document.querySelector('[data-typing="sentence"]');
+    const currentRoomEl = document.querySelector(`#content-wrapper .active`);
+    const sentenceEl = currentRoomEl.querySelector('[data-typing="sentence"]');
     if (room.type === 'user') {
         sentenceEl.textContent = "is typing";
         return;
@@ -92,15 +93,15 @@ const updateTypingNotification = (room) => {
 
         return;
     }
-    
-        if (typingUsers.length > 3) {
-            userTypingEl.textContent = `${typingUsers.length} users`;
-        } else {
-            const _usernames = typingUsers.map(user => user.username);
-            console.log(_usernames);
-            userTypingEl.textContent = `${_usernames.join(', ')} `;
-        }
-        sentenceEl.textContent = " are typing";
+
+    if (typingUsers.length > 3) {
+        userTypingEl.textContent = `${typingUsers.length} users`;
+    } else {
+        const _usernames = typingUsers.map(user => user.username);
+        console.log(_usernames);
+        userTypingEl.textContent = `${_usernames.join(', ')} `;
+    }
+    sentenceEl.textContent = " are typing";
 }
 
 const addTypingMessage = (user, room) => {
@@ -411,11 +412,11 @@ const initSocketListener = () => {
         console.log(`user ${user.username} joined`);
         addUserToOnlineUsers(user);
     });
-    
+
     socket.on('user_left', function ({ user }) {
         removeUserFromOnlineUsers(user);
-    });    
-    
+    });
+
     socket.on('private_message', function ({ user, message }) {
         // create the room if does not exist
         if (document.querySelector(`[data-room="${user.id}"]`) === null) {
@@ -424,43 +425,43 @@ const initSocketListener = () => {
             createMessagesPanel(createUserRoomObject(user), user.username);
         }
         addOtherUserMessage(user, message, createUserRoomObject(user));
-    
+
         // add a small notification
         addNotReadNotification(user);
     });
-    
+
     socket.on('message', function ({ user, message, room }) {
         addOtherUserMessage(user, message, room);
     });
-    
+
     socket.on('typing', function ({ user, room }) {
         console.log('typing')
         console.log(user)
-    
+
         console.table(room)
         console.table(currentRoom)
         if (room.id === currentRoom.id) {
             addTypingMessage(user, room);
         }
     });
-    
+
     socket.on('stop_typing', function ({ user, room }) {
         console.log('stop typing')
         if (room.id === currentRoom.id) {
             removeTypingMessage(user, room);
         }
     });
-    
+
     socket.on('welcome', function ({ onlineUsers, channels }) {
         onlineUsers.map(user => addUserToOnlineUsers(user));
-    
+
         const appRooms = [];
         channels.map(channel => {
             const room = createChannelRoomObject(channel);
             appRooms.push(room);
             createChannelRoom(room);
         });
-    
+
         switchToRoom(appRooms[0]);
     });
 };
