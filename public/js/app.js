@@ -82,7 +82,7 @@ const updateTypingNotification = (room) => {
     const currentRoomEl = document.querySelector(`#content-wrapper .active`);
     const sentenceEl = currentRoomEl.querySelector('[data-typing="sentence"]');
     if (room.type === 'user') {
-        sentenceEl.textContent = "is typing";
+        sentenceEl.textContent = " is typing";
         return;
     }
 
