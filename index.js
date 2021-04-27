@@ -80,6 +80,7 @@ io.on('connection', (socket) => {
             onlineUsers = onlineUsers.filter(_user => socket.user.id !== _user.id);
             io.emit('user_left', { user: socket.user });
         }
+        socket.disconnect(true);
     });
 
     socket.on('typing', (room) => {
