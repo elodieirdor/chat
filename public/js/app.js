@@ -11,16 +11,9 @@ const templateRoomMessages = document.querySelector("#room-messages");
 const templateUserMenuItem = document.querySelector("#user-menu-item");
 const templateNotif = document.querySelector("#notif");
 
-const loader = document.getElementById('loader');
-
 const roomsMenuLink = document.getElementById('rooms-list');
 const onlineUsersMenuLink = document.getElementById('users-list');
 const privateMenuLink = document.getElementById('private-list');
-
-const usernameInput = document.getElementById('username');
-usernameInput.focus();
-
-const messageInput = document.getElementById('input');
 
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
@@ -146,9 +139,50 @@ const switchToChat = () => {
     // display chat page
     const chatPage = document.getElementById('chatPage');
     toggleClasses(chatPage, ['block', 'hidden']);
-
-    messageInput.focus();
 };
+
+const addRoomListeners = (room) => {
+    const messageForm = document.querySelector(`[data-room="${room.id}"] [data-form="message"]`);
+    const messageInput = messageForm.querySelector('input');
+    const loader = messageForm.querySelector('[data-form="loader"]');
+
+    messageForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (messageInput.value) {
+            messageInput.disabled = true;
+            toggleClasses(messageInput, ['w-full', 'w-11/12']);
+            toggleClasses(loader, ['hidden']);
+
+            const _message = await safelyTransformMessage(messageInput.value);
+
+            socket.emit('message', _message, currentRoom);
+            addMyMessage(_message);
+
+            toggleClasses(loader, ['block', 'hidden']);
+            toggleClasses(messageInput, ['w-full', 'w-11/12']);
+            messageInput.value = '';
+            messageInput.disabled = false;
+            messageInput.focus();
+        }
+    });
+
+    messageInput.addEventListener("input", () => {
+        if (isTyping === false) {
+            isTyping = true;
+            socket.emit('typing', currentRoom);
+        }
+        lastTypingTime = (new Date()).getTime();
+
+        setTimeout(() => {
+            const typingTimer = (new Date()).getTime();
+            const timeDiff = typingTimer - lastTypingTime;
+            if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
+                socket.emit('stop_typing', currentRoom);
+                isTyping = false;
+            }
+        }, TYPING_TIMER_LENGTH);
+    });
+}
 
 const switchToRoom = (room) => {
     const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room="${room.id}"]`);
@@ -183,7 +217,7 @@ const switchToRoom = (room) => {
 
     typingUsers = [];
     currentRoom = room;
-    messageInput.focus();
+    document.querySelector('.active [data-form="message"] input').focus();
 };
 
 const createMessagesPanel = (room, title, image = null) => {
@@ -202,6 +236,8 @@ const createMessagesPanel = (room, title, image = null) => {
         img.remove();
     }
     contentWrapper.insertBefore(cloneRoomPanel, form);
+
+    addRoomListeners(room);
 }
 
 const createChannelRoom = (room) => {
@@ -216,7 +252,6 @@ const createChannelRoom = (room) => {
     // Create room panel
     createMessagesPanel(room, room.id);
 };
-
 
 const addUserToLists = (user, listElement) => {
     const clone = document.importNode(templateUserMenuItem.content, true);
@@ -272,55 +307,6 @@ const getUserFromList = (userId, list) => {
 
     return ret[0];
 }
-
-var usernameForm = document.getElementById('username-form');
-usernameForm.addEventListener('submit', function (e) {
-    var username = usernameInput.value;
-    e.preventDefault();
-    if (username) {
-        socket.emit('user_joined', username);
-        initSocketListener();
-        switchToChat();
-    }
-});
-
-var messageForm = document.getElementById('form');
-messageForm.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    if (messageInput.value) {
-        messageInput.disabled = true;
-        toggleClasses(messageInput, ['w-full', 'w-11/12']);
-        toggleClasses(loader, ['hidden']);
-
-        const _message = await safelyTransformMessage(messageInput.value);
-
-        socket.emit('message', _message, currentRoom);
-        addMyMessage(_message);
-
-        toggleClasses(loader, ['block', 'hidden']);
-        toggleClasses(input, ['w-full', 'w-11/12']);
-        messageInput.value = '';
-        messageInput.disabled = false;
-        messageInput.focus();
-    }
-});
-
-messageInput.addEventListener("input", () => {
-    if (isTyping === false) {
-        isTyping = true;
-        socket.emit('typing', currentRoom);
-    }
-    lastTypingTime = (new Date()).getTime();
-
-    setTimeout(() => {
-        const typingTimer = (new Date()).getTime();
-        const timeDiff = typingTimer - lastTypingTime;
-        if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
-            socket.emit('stop_typing', currentRoom);
-            isTyping = false;
-        }
-    }, TYPING_TIMER_LENGTH);
-});
 
 roomsMenuLink.addEventListener('click', (event) => {
     const room = event.target.getAttribute('data-menu-room');
@@ -429,3 +415,24 @@ const initSocketListener = () => {
         switchToRoom(appRooms[0]);
     });
 };
+
+//#region UsernameForm
+const initUsernamePage = () => {
+    const usernameForm = document.getElementById('username-form');
+    const usernameInput = usernameForm.querySelector('#username')
+    usernameInput.focus();
+
+    usernameForm.addEventListener('submit', function (e) {
+        var username = usernameInput.value;
+        e.preventDefault();
+        if (username) {
+            socket.emit('user_joined', username);
+            initSocketListener();
+            switchToChat();
+        }
+    });
+
+    
+};
+initUsernamePage();
+//#endregion
