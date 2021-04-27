@@ -68,6 +68,14 @@ const addUserStatusMessage = (message, room) => {
     addMessageToList(clone, room);
 };
 
+const deactivateMessageInputRoom = (room) => {
+    const messageInput = document.querySelector(`[data-room="${room.id}"] [data-form="message"] input`);
+    messageInput.disabled = true;
+    messageInput.style['opacity'] = 0.5;
+
+    handleRoomListeners(room, false);
+}
+
 const updateTypingNotification = (room) => {
     const currentRoomEl = document.querySelector(`#content-wrapper .active`);
     const sentenceEl = currentRoomEl.querySelector('[data-typing="sentence"]');
@@ -108,7 +116,6 @@ const addTypingMessage = (user, room) => {
 };
 
 const removeTypingMessage = (user, room) => {
-
     const userIndex = typingUsers.findIndex(function (_user) {
         return _user.id === user.id;
     });
@@ -141,48 +148,56 @@ const switchToChat = () => {
     toggleClasses(chatPage, ['block', 'hidden']);
 };
 
-const addRoomListeners = (room) => {
+const handleSubmitMessage = async function (e, messageForm) {
+    e.preventDefault();
+
+    const loader = messageForm.querySelector('[data-form="loader"]');
+    const messageInput = messageForm.querySelector('input');
+    
+    if (messageInput.value) {
+        messageInput.disabled = true;
+        toggleClasses(messageInput, ['w-full', 'w-11/12']);
+        toggleClasses(loader, ['hidden']);
+
+        const _message = await safelyTransformMessage(messageInput.value);
+
+        socket.emit('message', _message, currentRoom);
+        addMyMessage(_message);
+
+        toggleClasses(loader, ['block', 'hidden']);
+        toggleClasses(messageInput, ['w-full', 'w-11/12']);
+        messageInput.value = '';
+        messageInput.disabled = false;
+        messageInput.focus();
+    }
+};
+
+const handleTypingMessage = () => {
+    if (isTyping === false) {
+        isTyping = true;
+        socket.emit('typing', currentRoom);
+    }
+    lastTypingTime = (new Date()).getTime();
+
+    setTimeout(() => {
+        const typingTimer = (new Date()).getTime();
+        const timeDiff = typingTimer - lastTypingTime;
+        if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
+            socket.emit('stop_typing', currentRoom);
+            isTyping = false;
+        }
+    }, TYPING_TIMER_LENGTH);
+};
+
+const handleRoomListeners = (room, addListener = true) => {
     const messageForm = document.querySelector(`[data-room="${room.id}"] [data-form="message"]`);
     const messageInput = messageForm.querySelector('input');
-    const loader = messageForm.querySelector('[data-form="loader"]');
 
-    messageForm.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        if (messageInput.value) {
-            messageInput.disabled = true;
-            toggleClasses(messageInput, ['w-full', 'w-11/12']);
-            toggleClasses(loader, ['hidden']);
+    const functionName = addListener ? 'addEventListener' : 'removeEventListener';
+    messageForm[functionName]('submit', (e) => handleSubmitMessage(e, messageForm));
+    messageInput[functionName]("input", handleTypingMessage);
+};
 
-            const _message = await safelyTransformMessage(messageInput.value);
-
-            socket.emit('message', _message, currentRoom);
-            addMyMessage(_message);
-
-            toggleClasses(loader, ['block', 'hidden']);
-            toggleClasses(messageInput, ['w-full', 'w-11/12']);
-            messageInput.value = '';
-            messageInput.disabled = false;
-            messageInput.focus();
-        }
-    });
-
-    messageInput.addEventListener("input", () => {
-        if (isTyping === false) {
-            isTyping = true;
-            socket.emit('typing', currentRoom);
-        }
-        lastTypingTime = (new Date()).getTime();
-
-        setTimeout(() => {
-            const typingTimer = (new Date()).getTime();
-            const timeDiff = typingTimer - lastTypingTime;
-            if (timeDiff >= TYPING_TIMER_LENGTH && isTyping) {
-                socket.emit('stop_typing', currentRoom);
-                isTyping = false;
-            }
-        }, TYPING_TIMER_LENGTH);
-    });
-}
 
 const switchToRoom = (room) => {
     const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room="${room.id}"]`);
@@ -237,7 +252,7 @@ const createMessagesPanel = (room, title, image = null) => {
     }
     contentWrapper.insertBefore(cloneRoomPanel, form);
 
-    addRoomListeners(room);
+    handleRoomListeners(room);
 }
 
 const createChannelRoom = (room) => {
@@ -291,7 +306,9 @@ const removeUserFromOnlineUsers = (user) => {
     const _user = getUserFromList(user.id, privateTalks);
     if (_user !== null) {
         const message = `${user.username} has left the chat.`;
-        addUserStatusMessage(message, createUserRoomObject(user));
+        const room = createUserRoomObject(user);
+        addUserStatusMessage(message, room);
+        deactivateMessageInputRoom(room);
         addNotReadNotification(user);
     }
 
