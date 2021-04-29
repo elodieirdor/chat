@@ -10,10 +10,13 @@ const templateRoomMenuItem = document.querySelector("#room-menu-item");
 const templateRoomMessages = document.querySelector("#room-messages");
 const templateUserMenuItem = document.querySelector("#user-menu-item");
 const templateNotif = document.querySelector("#notif");
+const templateUserCheckboxItem = document.querySelector("#user-checkbox-item");
 
 const roomsMenuLink = document.getElementById('rooms-list');
 const onlineUsersMenuLink = document.getElementById('users-list');
 const privateMenuLink = document.getElementById('private-list');
+const groupRoomForm = document.getElementById('group-room');
+const checkboxListEl = document.getElementById('checkbox-list');
 
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
@@ -268,7 +271,7 @@ const createChannelRoom = (room) => {
     createMessagesPanel(room, room.id);
 };
 
-const addUserToLists = (user, listElement) => {
+const addUserToMenuLists = (user, listElement) => {
     const clone = document.importNode(templateUserMenuItem.content, true);
 
     const linkEl = clone.querySelector('a');
@@ -285,14 +288,25 @@ const addUserToLists = (user, listElement) => {
     listElement.appendChild(clone);
 };
 
+const addUserToModal = (user) => {
+    var clone = document.importNode(templateUserCheckboxItem.content, true);
+    clone.querySelector('input').setAttribute('id', user.id);
+    clone.querySelector('input').setAttribute('value', user);
+    clone.querySelector('label').setAttribute('for', user.id);
+    clone.querySelector('[data-user-checkbox-item]').setAttribute('data-user-checkbox-item', user.id);
+    clone.querySelector('label').textContent = user.username;
+    checkboxListEl.appendChild(clone);
+};
+
 const addUserToOnlineUsers = (user) => {
     appOnlineUsers = [...appOnlineUsers, user];
-    addUserToLists(user, onlineUsersMenuLink);
+    addUserToMenuLists(user, onlineUsersMenuLink);
+    addUserToModal(user);
 };
 
 const addUserToPrivateTalks = (user) => {
     privateTalks = [...privateTalks, user];
-    addUserToLists(user, privateMenuLink);
+    addUserToMenuLists(user, privateMenuLink);
 };
 
 const removeUserFromOnlineUsers = (user) => {
@@ -301,6 +315,11 @@ const removeUserFromOnlineUsers = (user) => {
         return;
     }
     onlineUserLink.parentElement.remove();
+
+    const userCheckboxItem = checkboxListEl.querySelector(`[data-user-checkbox-item="${user.id}"]`);
+    if (userCheckboxItem) {
+        userCheckboxItem.remove();
+    }
 
     // notify members who were private messenging
     const _user = getUserFromList(user.id, privateTalks);
@@ -453,3 +472,29 @@ const initUsernamePage = () => {
 };
 initUsernamePage();
 //#endregion
+
+const toggleGroupRoomModal = () => {
+    toggleClasses(document.getElementById('groupRoomModal'), ['hidden', 'active']);
+}
+
+
+const initCreateGroupRoom = () => {
+
+    
+
+
+    // todo handle remove
+
+    groupRoomForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const selectedCheckboxes = groupRoomForm.querySelectorAll('input[type=checkbox]:checked');
+        const users = [];
+        for (var selectedCheckbox of selectedCheckboxes) {
+            users.push(selectedCheckbox.value);
+        }
+        console.log(users);
+    });
+
+    
+};
+initCreateGroupRoom();
