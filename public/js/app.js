@@ -12,7 +12,7 @@ const templateUserMenuItem = document.querySelector("#user-menu-item");
 const templateNotif = document.querySelector("#notif");
 const templateUserCheckboxItem = document.querySelector("#user-checkbox-item");
 
-const roomsMenuLink = document.getElementById('rooms-list');
+const channelsMenuLink = document.getElementById('rooms-list');
 const onlineUsersMenuLink = document.getElementById('users-list');
 const privateMenuLink = document.getElementById('private-list');
 const groupRoomForm = document.getElementById('group-room');
@@ -24,6 +24,7 @@ let typingUsers = [];
 
 let currentRoom = null;
 
+let appUser = {};
 let appOnlineUsers = [];
 let privateTalks = [];
 
@@ -31,8 +32,12 @@ const createChannelRoomObject = (roomId) => {
     return { type: 'channel', id: roomId };
 };
 
+const createPrivateRoomObject = (roomId, title, image) => {
+    return { type: 'private_room', id: roomId, image, title, };
+};
+
 const createUserRoomObject = (user) => {
-    return { type: 'user', id: user.id };
+    return { type: 'user', id: user.id, title: user.username };
 };
 
 const addMessageToList = (messageEl, room) => {
@@ -156,7 +161,7 @@ const handleSubmitMessage = async function (e, messageForm) {
 
     const loader = messageForm.querySelector('[data-form="loader"]');
     const messageInput = messageForm.querySelector('input');
-    
+
     if (messageInput.value) {
         messageInput.disabled = true;
         toggleClasses(messageInput, ['w-full', 'w-11/12']);
@@ -203,6 +208,11 @@ const handleRoomListeners = (room, addListener = true) => {
 
 
 const switchToRoom = (room) => {
+
+
+    console.log('switch to ')
+    console.log(room);
+
     const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room="${room.id}"]`);
     const itemsMenuToEdit = [toBeCurrentRoomItemMenu];
 
@@ -216,6 +226,9 @@ const switchToRoom = (room) => {
         const currentRoomEl = document.querySelector(`#content-wrapper .active`);
         roomPanelsToEdit.push(currentRoomEl);
     }
+
+    console.log(`[data-menu-room="${room.id}"]`);
+    console.log(itemsMenuToEdit);
 
     // remove "active" classes on previous items and add them to the room about to be current
     itemsMenuToEdit.map((_roomItem) => {
@@ -265,25 +278,26 @@ const createChannelRoom = (room) => {
     linkEl.setAttribute('href', `#${room.id}`);
     linkEl.setAttribute('data-menu-room', room.id);
     linkEl.textContent = room.id;
-    roomsMenuLink.appendChild(clone);
+    channelsMenuLink.appendChild(clone);
 
     // Create room panel
     createMessagesPanel(room, room.id);
 };
 
-const addUserToMenuLists = (user, listElement) => {
+const addUserToMenuLists = (room, listElement) => {
     const clone = document.importNode(templateUserMenuItem.content, true);
 
     const linkEl = clone.querySelector('a');
-    linkEl.setAttribute('href', `#${slugify(user.username)}`);
-    linkEl.setAttribute('data-menu-user', user.id);
-    linkEl.setAttribute('data-menu-room', user.id);
+    linkEl.setAttribute('href', `#${slugify(room.title)}`);
+    // linkEl.setAttribute('data-menu-user', room.id);
+    linkEl.setAttribute('data-menu-room', room.id);
+    linkEl.setAttribute('room-type', room.type);
 
     const imgEl = clone.querySelector('img');
-    imgEl.setAttribute('src', user.image);
+    imgEl.setAttribute('src', room.image);
 
     const nameEl = clone.querySelector('[data-name]');
-    nameEl.textContent = user.username;
+    nameEl.textContent = room.title;
 
     listElement.appendChild(clone);
 };
@@ -291,7 +305,7 @@ const addUserToMenuLists = (user, listElement) => {
 const addUserToModal = (user) => {
     var clone = document.importNode(templateUserCheckboxItem.content, true);
     clone.querySelector('input').setAttribute('id', user.id);
-    clone.querySelector('input').setAttribute('value', user);
+    clone.querySelector('input').setAttribute('value', JSON.stringify(user));
     clone.querySelector('label').setAttribute('for', user.id);
     clone.querySelector('[data-user-checkbox-item]').setAttribute('data-user-checkbox-item', user.id);
     clone.querySelector('label').textContent = user.username;
@@ -304,13 +318,14 @@ const addUserToOnlineUsers = (user) => {
     addUserToModal(user);
 };
 
-const addUserToPrivateTalks = (user) => {
-    privateTalks = [...privateTalks, user];
-    addUserToMenuLists(user, privateMenuLink);
+const addRoomToPrivateRooms = (room) => {
+    privateTalks = [...privateTalks, room];
+    addUserToMenuLists(room, privateMenuLink);
 };
 
 const removeUserFromOnlineUsers = (user) => {
-    const onlineUserLink = onlineUsersMenuLink.querySelector(`[data-menu-user="${user.id}"]`)
+    // const onlineUserLink = onlineUsersMenuLink.querySelector(`[data-menu-user="${user.id}"]`)
+    const onlineUserLink = onlineUsersMenuLink.querySelector(`[data-menu-room="${user.id}"]`)
     if (onlineUserLink === null) {
         return;
     }
@@ -344,7 +359,7 @@ const getUserFromList = (userId, list) => {
     return ret[0];
 }
 
-roomsMenuLink.addEventListener('click', (event) => {
+channelsMenuLink.addEventListener('click', (event) => {
     const room = event.target.getAttribute('data-menu-room');
     if (room === null || room === currentRoom.id) {
         return;
@@ -355,11 +370,14 @@ roomsMenuLink.addEventListener('click', (event) => {
 privateMenuLink.addEventListener('click', (event) => {
     const menuRoom = event.target.closest('[data-menu-room]');
     const userId = menuRoom.getAttribute('data-menu-room');
+    const roomType = menuRoom.getAttribute('room-type');
     if (userId === null || userId === currentRoom.id) {
         return;
     }
 
-    switchToRoom(createUserRoomObject({ id: userId }));
+    const room = roomType === 'user' ? createUserRoomObject({ id: userId }) : createPrivateRoomObject(userId, 'mon title');
+
+    switchToRoom(room);
 });
 
 onlineUsersMenuLink.addEventListener('click', (event) => {
@@ -374,14 +392,18 @@ onlineUsersMenuLink.addEventListener('click', (event) => {
         return;
     }
 
+    const room = createUserRoomObject(user);
+
     // create the user room if does exist
     if (document.querySelector(`[data-room="${user.id}"]`) === null) {
+        console.log("create the private message room");
         // add item to private menu
-        addUserToPrivateTalks(user);
-        createMessagesPanel(createUserRoomObject(user), user.username, user.image);
+        addRoomToPrivateRooms(user);
+        createMessagesPanel(room, user.username, user.image);
     }
 
-    switchToRoom(createUserRoomObject(user));
+    console.log("switch to user room object", user)
+    switchToRoom(room);
 });
 
 const addNotReadNotification = (user) => {
@@ -399,6 +421,22 @@ const addNotReadNotification = (user) => {
     document.querySelector(`#private-list a[data-menu-room="${user.id}"]`).appendChild(clone);
 };
 
+const onReceiveMessage = (room, message, user) => {
+
+
+    // TODO HANDLE CREATE CHANNEL
+
+    if (document.querySelector(`[data-room="${room.id}"]`) === null) {
+        // add item to private menu
+        addRoomToPrivateRooms(room);
+        createMessagesPanel(room, room.title, room.image);
+    }
+
+    addOtherUserMessage(user, message, room);
+
+    addNotReadNotification(room);
+};
+
 const initSocketListener = () => {
     socket.on('user_joined', function ({ user }) {
         console.log(`user ${user.username} joined`);
@@ -410,20 +448,44 @@ const initSocketListener = () => {
     });
 
     socket.on('private_message', function ({ user, message }) {
-        // create the room if does not exist
-        if (document.querySelector(`[data-room="${user.id}"]`) === null) {
-            // add item to private menu
-            addUserToPrivateTalks(user);
-            createMessagesPanel(createUserRoomObject(user), user.username);
-        }
-        addOtherUserMessage(user, message, createUserRoomObject(user));
+        // console.log(user);
+        // console.log(message);
 
-        // add a small notification
-        addNotReadNotification(user);
+        const room = createUserRoomObject(user);
+
+        onReceiveMessage(room, message, user);
+
+        // // create the room if does not exist
+        // if (document.querySelector(`[data-room="${user.id}"]`) === null) {
+        //     // add item to private menu
+        //     addRoomToPrivateRooms(user);
+        //     createMessagesPanel(room, user.username);
+        // }
+        // addOtherUserMessage(user, message, room);
+
+        // // add a small notification
+        // addNotReadNotification(user);
     });
 
     socket.on('message', function ({ user, message, room }) {
-        addOtherUserMessage(user, message, room);
+        // console.log(user);
+        // console.log(message);
+        // console.log(room);
+
+
+        // // private room
+        // if (document.querySelector(`[data-room="${room.id}"]`) === null) {
+        //     // add item to private menu
+        //     addRoomToPrivateRooms(room);
+        //     createMessagesPanel(room, room.username, room.image);
+        // }
+
+        // addOtherUserMessage(user, message, room);
+
+        // addNotReadNotification(room);
+
+        onReceiveMessage(room, message, user);
+
     });
 
     socket.on('typing', function ({ user, room }) {
@@ -438,7 +500,9 @@ const initSocketListener = () => {
         }
     });
 
-    socket.on('welcome', function ({ onlineUsers, channels }) {
+    socket.on('welcome', function ({ onlineUsers, channels, user }) {
+        appUser = user;
+
         onlineUsers.map(user => addUserToOnlineUsers(user));
 
         const appRooms = [];
@@ -468,7 +532,10 @@ const initUsernamePage = () => {
         }
     });
 
-    
+    // debug
+    usernameInput.value = `User ${Math.floor(Math.random() * 10)}`;
+    usernameForm.dispatchEvent(new Event('submit'));
+    // end debug
 };
 initUsernamePage();
 //#endregion
@@ -479,22 +546,41 @@ const toggleGroupRoomModal = () => {
 
 
 const initCreateGroupRoom = () => {
-
-    
-
-
-    // todo handle remove
-
     groupRoomForm.addEventListener('submit', function (e) {
         e.preventDefault();
         const selectedCheckboxes = groupRoomForm.querySelectorAll('input[type=checkbox]:checked');
         const users = [];
-        for (var selectedCheckbox of selectedCheckboxes) {
-            users.push(selectedCheckbox.value);
+        for (let selectedCheckbox of selectedCheckboxes) {
+            users.push(JSON.parse(selectedCheckbox.value));
         }
-        console.log(users);
+
+        if (users.length === 1) {
+            // todo go to private talk
+        }
+
+        const userIds = users.map(user => user.id);
+        userIds.push(appUser.id);
+        const userUsernames = users.map(user => user.username);
+
+        const privateRoomId = userIds.sort().join('___');
+        const roomTitle = userUsernames.join(', ');
+        const roomImage = 'https://randomuser.me/api/portraits/men/0.jpg';
+        const privateRoom = createPrivateRoomObject(privateRoomId, roomTitle, roomImage);
+
+        if (document.querySelector(`[data-room="${privateRoomId}"]`) === null) {
+            // add item to private menu
+            addRoomToPrivateRooms(privateRoom);
+            createMessagesPanel(privateRoom, privateRoom.title, privateRoom.image);
+        }
+        switchToRoom(privateRoom);
+
+        toggleGroupRoomModal();
+        for (let selectedCheckbox of selectedCheckboxes) {
+            selectedCheckbox.checked = false;
+        }
+
     });
 
-    
+
 };
 initCreateGroupRoom();

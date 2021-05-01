@@ -60,8 +60,7 @@
                 </a>
                 <form id="username-form">
                     <label for="username" class="text-gray-500 text-xl mb-6 block">What's your nickname ?</label>
-                    <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none"
-                        value="plop">
+                    <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none" />
                     <button class="block bg-yellow-500 mt-10 mx-auto rounded-xl w-max py-2 px-10 text-white">
                         Join
                     </button>
@@ -94,7 +93,7 @@
                             </li>
                             <li class="mt-8">
                                 <h3 class="uppercase tracking-wide font-semibold text-sm text-gray-900">
-                                    Private talks
+                                    Direct messages
                                 </h3>
                                 <ul id="private-list" class="overflow-ellipsis overflow-hidden"></ul>
                             </li>
@@ -226,8 +225,9 @@
 
     <template id="user-menu-item">
         <li class="py-1 overflow-ellipsis overflow-hidden flex items-center">
-            <a class="block capitalize flex w-full relative" room-type="user" data-menu-user data-menu-room href="">
-                <img src="" class="h-10 w-10 rounded-full mr-1" />
+            <!-- <a class="block capitalize flex w-full relative" room-type="user" data-menu-user data-menu-room href=""> -->
+            <a class="block capitalize flex w-full relative" room-type="user" data-menu-room href="">
+                    <img src="" class="h-10 w-10 rounded-full mr-1" />
                 <span data-name></span>
             </a>
         </li>
