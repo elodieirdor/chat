@@ -210,6 +210,7 @@ const handleRoomListeners = (room, addListener = true) => {
 const switchToRoom = (room) => {
 
 
+    // should only send an id
     console.log('switch to ')
     console.log(room);
 
@@ -252,6 +253,7 @@ const switchToRoom = (room) => {
 };
 
 const createMessagesPanel = (room, title, image = null) => {
+    // todo add attribute anout the room type (use constant)
     var form = document.getElementById('form');
     var contentWrapper = document.getElementById('content-wrapper');
 
@@ -375,6 +377,7 @@ privateMenuLink.addEventListener('click', (event) => {
         return;
     }
 
+    // change this, no need to create a room each time we are clicking on a link, should add the attribute to the item
     const room = roomType === 'user' ? createUserRoomObject({ id: userId }) : createPrivateRoomObject(userId, 'mon title');
 
     switchToRoom(room);
@@ -391,7 +394,8 @@ onlineUsersMenuLink.addEventListener('click', (event) => {
     if (user === null) {
         return;
     }
-
+    
+    // change this, no need to create a room each time we are clicking on a link, should add the attribute to the item
     const room = createUserRoomObject(user);
 
     // create the user room if does exist
