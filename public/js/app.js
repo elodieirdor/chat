@@ -17,6 +17,7 @@ const onlineUsersMenuLink = document.getElementById('users-list');
 const privateMenuLink = document.getElementById('private-list');
 const groupRoomForm = document.getElementById('group-room');
 const checkboxListEl = document.getElementById('checkbox-list');
+const createGroupButton = document.getElementById('create-group');
 
 let isTyping = false;
 const TYPING_TIMER_LENGTH = 500;
@@ -34,7 +35,7 @@ const createChannelRoomObject = (roomId) => {
     return { type: 'channel', id: roomId };
 };
 
-const createPrivateRoomObject = (roomId/*, title*/) => {
+const createPrivateRoomObject = (roomId) => {
     return { type: 'private_room', id: roomId, image: '/images/favicon-32x32.png' };
 };
 
@@ -217,7 +218,6 @@ const handleRoomListeners = (room, addListener = true) => {
 };
 
 const switchToUserRoom = (userId) => {
-
     if (userId === null || userId == currentRoom.id) {
         return;
     }
@@ -232,19 +232,14 @@ const switchToUserRoom = (userId) => {
 
     // create the user room if does exist
     if (document.querySelector(`[data-room="${user.id}"]`) === null) {
-        console.log("create the private message room");
         createPrivateRoom(room, user.username, user.image);
     }
 
-    console.log("switch to user room object", user)
+    console.info("switch to user room object", user)
     switchToRoom(room);
 };
 
 const switchToRoom = (room) => {
-    // should only send an id
-    console.log('switch to ')
-    console.log(room);
-
     const toBeCurrentRoomItemMenu = document.querySelector(`[data-menu-room="${room.id}"]`);
     const itemsMenuToEdit = [toBeCurrentRoomItemMenu];
 
@@ -258,9 +253,6 @@ const switchToRoom = (room) => {
         const currentRoomEl = document.querySelector(`#content-wrapper .active`);
         roomPanelsToEdit.push(currentRoomEl);
     }
-
-    console.log(`[data-menu-room="${room.id}"]`);
-    console.log(itemsMenuToEdit);
 
     // remove "active" classes on previous items and add them to the room about to be current
     itemsMenuToEdit.map((_roomItem) => {
@@ -358,6 +350,10 @@ const addUserToOnlineUsers = (user) => {
     const room = createUserRoomObject(user);
     addRoomToMenuLists(room, user.username, onlineUsersMenuLink);
     addUserToModal(user);
+    // enable create group button
+    if (appOnlineUsers.length === 2) {
+        toggleGroupModalButton();
+    }
 };
 
 const addPrivateRooms = (room, title) => {
@@ -388,6 +384,14 @@ const removeUserFromOnlineUsers = (user) => {
     }
 
     removeTypingMessage(user);
+
+    // remove user from online users
+    appOnlineUsers = appOnlineUsers.filter(appOnlineUser => appOnlineUser.id !== user.id);
+
+    // disable create group button
+    if (appOnlineUsers.length === 1) {
+        toggleGroupModalButton();
+    }
 };
 
 const getUserFromList = (userId, list) => {
@@ -483,7 +487,7 @@ const onReceiveMessage = (room, message, user) => {
 
 const initSocketListener = () => {
     socket.on('user_joined', function ({ user }) {
-        console.log(`user ${user.username} joined`);
+        console.info(`user ${user.username} joined`);
         addUserToOnlineUsers(user);
     });
 
@@ -551,6 +555,18 @@ const initUsernamePage = () => {
 };
 initUsernamePage();
 //#endregion
+
+
+const toggleGroupModalButton = () => {
+    const disabledAttribute = createGroupButton.getAttribute('disabled');
+    const isDisabled = disabledAttribute !== null;
+    if (isDisabled) {
+        createGroupButton.removeAttribute('disabled');
+    } else {
+        createGroupButton.setAttribute('disabled', true);
+    }
+    toggleClasses(createGroupButton, ['bg-yellow-600', 'hover:bg-yellow-700', 'bg-gray-300']);
+};
 
 const toggleGroupRoomModal = (resetCheckbox = true) => {
     toggleClasses(document.getElementById('groupRoomModal'), ['hidden', 'active']);

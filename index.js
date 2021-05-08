@@ -56,8 +56,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('message', async (msg, recipient) => {
-        console.log(recipient);
-        console.log(msg);
         if (recipient === undefined) {
             return;
         }

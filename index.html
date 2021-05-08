@@ -79,8 +79,10 @@
                     </a>
                 </div>
 
-                <button type="submit" onclick="toggleGroupRoomModal()"
-                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                <button type="submit" onclick="toggleGroupRoomModal()" disabled id="create-group"
+                    class="flex mx-auto justify-center rounded-md border border-transparent shadow-sm 
+                    px-4 py-2 bg-gray-300 text-white mt-5 disabled:opacity-90
+                    ">
                     Create group room
                 </button>
 
@@ -225,7 +227,6 @@
 
     <template id="user-menu-item">
         <li class="py-1 overflow-ellipsis overflow-hidden flex items-center">
-            <!-- <a class="block capitalize flex w-full relative" room-type="user" data-menu-user data-menu-room href=""> -->
             <a class="block capitalize flex w-full relative" room-type="user" data-menu-room href="">
                     <img src="" class="h-10 w-10 rounded-full mr-1" />
                 <span class="self-center" data-name></span>
