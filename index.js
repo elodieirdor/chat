@@ -32,46 +32,70 @@ app.post('/info-url', async (req, res) => {
 
 let onlineUsers = [];
 const channels = ['community', 'other'];
+const privateRooms = [];
+const groupIdSeparator = '___';
 
 // cheatsheet https://socket.io/docs/v4/emit-cheatsheet/
 io.on('connection', (socket) => {
-    console.log('a user connected');
+    console.log('user connected');
 
-    channels.map(channel => socket.join(channel));
+    socket.join(channels);
 
     socket.on('user_joined', (username) => {
-        socket.emit('welcome', { onlineUsers, channels });
-
         socket.user = {
             username,
             image: `https://randomuser.me/api/portraits/lego/${getRandomInt(9)}.jpg`,
             id: socket.id
         };
+
+        socket.emit('welcome', { onlineUsers, channels, user: socket.user });
+
         onlineUsers = [...onlineUsers, socket.user];
 
         socket.broadcast.emit('user_joined', { user: socket.user });
     });
 
-    socket.on('message', (msg, recipient) => {
+    socket.on('message', async (msg, recipient) => {
         if (recipient === undefined) {
             return;
+        }
+
+        // this is a private group message, join the room if not already done
+        if (recipient.type === 'private_room' && privateRooms.indexOf(recipient.id) === -1) {
+            const privateRoomId = recipient.id;
+            const socketetIds = privateRoomId.split(groupIdSeparator);
+
+            for (let socketId of socketetIds) {
+                const sockets = await io.in(socketId).fetchSockets();
+                if (sockets.length === 1) {
+                    sockets[0].join(privateRoomId);
+                }
+            }
+            privateRooms.push(privateRoomId);
         }
 
         const date = new Date();
         const timeStr = `${date.getHours()}:${date.getMinutes()}`;
         const message = { content: msg, time: timeStr };
-        if (recipient.type === "channel") {
+
+        if (recipient.type === "channel" || recipient.type === "private_room") {
             socket.to(recipient.id).emit('message', {
                 message,
                 user: socket.user,
                 room: recipient,
             });
-        } else {
+            return;
+        }
+
+        if (recipient.type === "user") {
             io.to(recipient.id).emit("private_message", {
                 message,
                 user: socket.user,
             });
+            return;
         }
+
+        console.error(`Message from recipient ${recipient.type} not handled`);
     });
 
     socket.on('disconnect', () => {
