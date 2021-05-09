@@ -4,7 +4,7 @@
 <head>
     <meta charset='utf-8'>
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-    <title>Socket.IO chat</title>
+    <title>Ephemeral chat</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     <link rel="shortcut icon" href="/images/favicon.ico">
     <link href="/css/tailwind.css" rel="stylesheet">
@@ -14,7 +14,7 @@
 <body>
     <div class="w-full mx-auto bg-white">
 
-        <div id="groupRoomModal" class="fixed z-10 inset-0 overflow-y-auto hidden"  aria-labelledby="modal-title"
+        <div id="groupRoomModal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title"
             role="dialog" aria-modal="true">
             <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
@@ -54,13 +54,14 @@
         <div id="loginPage" class="h-screen p-10 flex flex-col">
             <div class="flex flex-col mt-10 w-full mx-auto h-full text-center">
                 <a class="mb-10" href="/">
-                    <img alt="Ephemere chat logo" src="/images/android-chrome-192x192.png" width="80" height="80"
+                    <img alt="Ephemeral chat logo" src="/images/android-chrome-192x192.png" width="80" height="80"
                         class="m-auto">
-                    <span class="text-2xl text-gray-500">Ephemere chat</span>
+                    <span class="text-2xl text-gray-500">Ephemeral chat</span>
                 </a>
                 <form id="username-form">
                     <label for="username" class="text-gray-500 text-xl mb-6 block">What's your nickname ?</label>
-                    <input type="text" name="username" id="username" class="text-center border-b-2 focus:outline-none" />
+                    <input type="text" name="username" id="username" autocomplete="off"
+                        class="text-center border-b-2 focus:outline-none" />
                     <button class="block bg-yellow-500 mt-10 mx-auto rounded-xl w-max py-2 px-10 text-white">
                         Join
                     </button>
@@ -73,14 +74,13 @@
 
                 <div class="flex-none pt-5 flex items-center m-auto ">
                     <a class="overflow-hidden w-auto flex space-x-2 m-auto  flex-col md:flex-row lg:flex-row" href="/">
-                        <img alt="Ephemere chat logo" src="/images/favicon-32x32.png" width="32" height="32"
+                        <img alt="Ephemeral chat logo" src="/images/favicon-32x32.png" width="32" height="32"
                             class="m-auto">
-                        <span class="text-base md:text-2xl text-gray-500">Ephemere chat</span>
+                        <span class="text-base md:text-2xl text-gray-500">Ephemeral chat</span>
                     </a>
                 </div>
 
-                <button type="submit" onclick="toggleGroupRoomModal()" disabled id="create-group"
-                    class="flex mx-auto justify-center rounded-md border border-transparent shadow-sm 
+                <button type="submit" onclick="toggleGroupRoomModal()" disabled id="create-group" class="flex mx-auto justify-center rounded-md border border-transparent shadow-sm 
                     px-4 py-2 bg-gray-300 text-white mt-5 disabled:opacity-90
                     ">
                     Create group room
@@ -208,7 +208,7 @@
 
             <form data-form="message" action="" class="mt-2 relative bottom-0 w-full flex">
                 <!-- FIXME  focus:ring focus:border-blue-500 -->
-                <input autocomplete="off" placeholder="Type your message" value="https://www.youtube.com/watch?v=dsPsJY54afw"
+                <input autocomplete="off" placeholder="Type your message" value=""
                     class="bg-white rounded-xl p-2 focus:outline-none w-full" />
                 <div data-form="loader"
                     class="hidden inline-flex items-center px-2 py-2 transition ease-in-out duration-150 w-1/12">
@@ -228,7 +228,7 @@
     <template id="user-menu-item">
         <li class="py-1 overflow-ellipsis overflow-hidden flex items-center">
             <a class="block capitalize flex w-full relative" room-type="user" data-menu-room href="">
-                    <img src="" class="h-10 w-10 rounded-full mr-1" />
+                <img src="" class="h-10 w-10 rounded-full mr-1" />
                 <span class="self-center" data-name></span>
             </a>
         </li>
